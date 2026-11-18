@@ -8,6 +8,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
 local Gameplay = require(Shared.Config.Gameplay)
+local Monetization = require(Shared.Config.Monetization)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
@@ -187,7 +188,11 @@ local function onBrew(player: Player)
 	refresh()
 	local recipe = Recipes.Find(contents)
 	local brewer = player
-	task.delay(Config.BrewSeconds, function()
+	-- Pass « Chaudron express » : potion presque instantanée.
+	local brewSeconds = if player:GetAttribute("Pass_ExpressBrew") == true
+		then Monetization.ExpressBrewSeconds
+		else Config.BrewSeconds
+	task.delay(brewSeconds, function()
 		if status ~= "Brewing" then
 			return
 		end

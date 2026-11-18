@@ -272,6 +272,9 @@ local function spawnCustomer(spotIndex: number)
 				local tipRate = Config.TipMax * (1 + UpgradeService.TipBonus(player))
 				local tip = math.floor(recipe.Value * tipRate * remaining / patience)
 				local multiplier = payMultiplier * ShopService.ComboMultiplier() * ShopService.EventMultiplier()
+				if player:GetAttribute("Pass_DoubleCoins") == true then
+					multiplier *= 2 -- pass « Pièces ×2 »
+				end
 				local total = math.floor((recipe.Value + tip) * multiplier)
 				PlayerService.AddCoins(player, total)
 				local bonus = if multiplier > 1 then ` x{multiplier}` else ""

@@ -39,9 +39,15 @@ local function bestOwned(player: Player, kind: string): Upgrades.Upgrade?
 	return best
 end
 
+-- Pass VIP (Robux) : attribut posé par MonetizationService.
+local function isVip(player: Player): boolean
+	return player:GetAttribute("Pass_VIP") == true
+end
+
 function UpgradeService.BasketSize(player: Player): number
 	local upgrade = bestOwned(player, "Basket")
-	return if upgrade then upgrade.Value else Gameplay.Player.BasketSize
+	local size = if upgrade then upgrade.Value else Gameplay.Player.BasketSize
+	return size + (if isVip(player) then 1 else 0)
 end
 
 function UpgradeService.WalkSpeed(player: Player): number
@@ -56,7 +62,8 @@ end
 
 function UpgradeService.Title(player: Player): string
 	local upgrade = bestOwned(player, "Title")
-	return if upgrade then upgrade.Value else Upgrades.DefaultTitle
+	local title = if upgrade then upgrade.Value else Upgrades.DefaultTitle
+	return if isVip(player) then `👑 VIP · {title}` else title
 end
 
 -- Vitesse + titre au-dessus de la tête.
@@ -93,7 +100,7 @@ local function applyCharacter(player: Player, character: Model)
 	end
 end
 
-local function refreshPlayer(player: Player)
+function UpgradeService.Refresh(player: Player)
 	local data = DataService.Get(player)
 	if data then
 		for _, upgrade in Upgrades.List do
@@ -124,7 +131,7 @@ local function onBuy(player: Player, upgrade: Upgrades.Upgrade, pedestal: BasePa
 		return
 	end
 	data.Upgrades[upgrade.Id] = true
-	refreshPlayer(player)
+	UpgradeService.Refresh(player)
 	FxService.Confetti(pedestal.Position + Vector3.new(0, 4, 0), 120)
 	FxService.Sound(pedestal, "Cash")
 	NotifyService.Send(player, `✨ {upgrade.Name} acheté ! {upgrade.Description}`, "success")
@@ -223,7 +230,7 @@ end
 function UpgradeService:Start()
 	buildArmoire()
 	DataService.OnLoaded(function(player: Player)
-		refreshPlayer(player)
+		UpgradeService.Refresh(player)
 	end)
 	local function watch(player: Player)
 		player.CharacterAdded:Connect(function(character)
