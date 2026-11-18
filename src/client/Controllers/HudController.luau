@@ -37,7 +37,8 @@ function HudController:Start()
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0, 0.5)
 	panel.Position = UDim2.new(0, 12, 0.45, 0)
-	panel.Size = UDim2.fromOffset(260, 150)
+	panel.Size = UDim2.fromOffset(290, 0)
+	panel.AutomaticSize = Enum.AutomaticSize.Y
 	panel.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
 	panel.BackgroundTransparency = 0.25
 	panel.Parent = gui
@@ -80,6 +81,13 @@ function HudController:Start()
 	local comboLabel = makeLabel(panel, 3, 24)
 	local eventLabel = makeLabel(panel, 4, 40)
 	local secretsLabel = makeLabel(panel, 5, 20)
+	local challengesTitle = makeLabel(panel, 6, 22)
+	challengesTitle.Text = "🎯 Défis"
+	challengesTitle.TextColor3 = Color3.fromRGB(140, 220, 255)
+	local challengeLabels = {}
+	for index = 1, 3 do
+		challengeLabels[index] = makeLabel(panel, 6 + index, 20)
+	end
 
 	local function attr(name: string, default: any): any
 		local value = state:GetAttribute(name)
@@ -118,6 +126,25 @@ function HudController:Start()
 		local personal = Players.LocalPlayer:GetAttribute("SecretsFound")
 		local found = if type(personal) == "number" then personal else 0
 		secretsLabel.Text = `✨ Mes recettes secrètes : {found}/{attr("SecretsTotal", 3)}`
+		local player = Players.LocalPlayer
+		for index, label in challengeLabels do
+			local text = player:GetAttribute(`Challenge{index}Text`)
+			if type(text) == "string" then
+				local progress = player:GetAttribute(`Challenge{index}Progress`) or 0
+				local goal = player:GetAttribute(`Challenge{index}Goal`) or 1
+				local reward = player:GetAttribute(`Challenge{index}Reward`) or 0
+				if player:GetAttribute(`Challenge{index}Done`) == true then
+					label.Text = `✅ {text}`
+					label.TextColor3 = Color3.fromRGB(120, 255, 150)
+				else
+					label.Text = `• {text}  {progress}/{goal}  ({reward} 💰)`
+					label.TextColor3 = Color3.new(1, 1, 1)
+				end
+			else
+				label.Text = ""
+			end
+		end
+
 		task.wait(0.25)
 	end
 end

@@ -8,6 +8,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
+local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
@@ -76,6 +77,7 @@ function ItemService.MakePotion(recipeId: string): Tool
 		tool:Destroy()
 		EffectService.Apply(character, recipe.Effect, nil, recipe.Color)
 		NotifyService.Send(player, `Glou glou… effet {EffectService.GetName(recipe.Effect)} !`, "success")
+		ChallengeService.Progress(player, "Drink")
 	end)
 	return tool
 end

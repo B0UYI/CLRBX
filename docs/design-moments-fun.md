@@ -19,7 +19,7 @@ Chaque ajout ci-dessous répond à l'un de ces besoins, et au nouvel algorithme 
 
 ## Prochaines idées (par priorité)
 
-1. **Sauvegarde** (ProfileStore) : pièces, recettes secrètes découvertes **par joueur** (collection perso à compléter).
+1. ~~Sauvegarde~~ ✅ v4 (+ Armoire du sorcier, titres, collection de secrets). ~~Défis~~ ✅ v5 (de session ; à rendre quotidiens).
 2. **Lancer des potions sur ses amis** (avec protection) — le moment le plus « clipable ».
 3. **Décoration de la boutique** avec les pièces (chaudrons dorés, étagères, mascotte) : dépense visible = fierté.
 4. **Quêtes du jour** (« sers 5 VIP », « déclenche 2 explosions ») + récompense de connexion.

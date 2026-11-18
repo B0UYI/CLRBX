@@ -9,6 +9,7 @@ local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
 local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
+local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
 local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -279,6 +280,12 @@ local function spawnCustomer(spotIndex: number)
 				ShopService.RecordServe(
 					if kind == "VIP" then Gameplay.Progression.XpPerVipServe else Gameplay.Progression.XpPerServe
 				)
+				ChallengeService.Progress(player, "Serve")
+				ChallengeService.Progress(player, "ServeRecipe", 1, recipe.Id)
+				ChallengeService.Progress(player, "Combo", ShopService.Combo())
+				if kind == "VIP" then
+					ChallengeService.Progress(player, "ServeVip")
+				end
 				leave(`Glou glou… Parfait ! 😄 ({effectName})`, Config.ReactionSeconds)
 			else
 				NotifyService.Send(player, `Oups ! Mauvaise potion… le client devient {effectName} 😂`, "boom")

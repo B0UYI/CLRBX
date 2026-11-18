@@ -9,6 +9,7 @@ local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
 local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
+local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
 local ItemService = require(script.Parent.ItemService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -88,7 +89,7 @@ local function reset()
 	refresh()
 end
 
-local function explode()
+local function explode(brewer: Player?)
 	local cauldron = WorldService.Cauldron
 	if not cauldron then
 		return
@@ -116,6 +117,7 @@ local function explode()
 			end
 		end
 	end
+	ChallengeService.Progress(brewer, "Explode")
 	reset()
 end
 
@@ -197,7 +199,7 @@ local function onBrew(player: Player)
 				ShopService.Discover(recipe, if brewer.Parent then brewer else nil)
 			end
 		else
-			explode()
+			explode(if brewer.Parent then brewer else nil)
 		end
 	end)
 end

@@ -43,6 +43,11 @@
 - [ ] Titre au-dessus de ta tête : « 🧪 Apprenti », puis « ⚗️ Alchimiste » / « 🧙 Grand Sorcier » après achat.
 - [ ] Recette secrète : « 📖 Nouvelle recette dans ta collection ! +50 », panneau « Mes recettes secrètes 1/3 ».
 
+## Nouveautés v5 à tester
+- [ ] Panneau : section **🎯 Défis** avec 3 objectifs (ex. « Sers 5 potions 2/5 (40 💰) »).
+- [ ] Défi réussi : « 🎯 Défi réussi ! +X 💰 », confettis sur toi, ✅ puis un nouveau défi 2 s après.
+- [ ] Défis à vérifier : explosion (mélange raté), boire 2 potions, série de 5, servir une recette précise.
+
 ## Limites connues (normal à ce stade)
 - Sauvegarde réelle seulement une fois le jeu publié + accès API activé (voir README).
 - Décor en blocs simples, sans son.
@@ -54,6 +59,7 @@
 
 ## Historique
 - v1 : premier prototype.
+- v5 : défis personnels (3 actifs, renouvelés, récompenses en pièces).
 - v4 : sauvegarde (ProfileStore), Armoire du sorcier (5 améliorations), titres, collection de secrets personnelle.
 - v3 : Grand Chaudron + Fête des potions, recettes secrètes, niveau de boutique et déblocages,
   séries, clients VIP / pressés, panneau d'infos, confettis et sons.

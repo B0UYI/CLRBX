@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Recipes = require(Shared.Config.Recipes)
 local Effects = require(Shared.Config.Effects)
 local Gameplay = require(Shared.Config.Gameplay)
+local ChallengeService = require(script.Parent.ChallengeService)
 local DataService = require(script.Parent.DataService)
 local EffectService = require(script.Parent.EffectService)
 local FxService = require(script.Parent.FxService)
@@ -97,6 +98,10 @@ function ShopService.OrderableRecipes(includeSecrets: boolean): { Recipes.Recipe
 	return list
 end
 
+function ShopService.Combo(): number
+	return combo
+end
+
 function ShopService.ComboMultiplier(): number
 	local multiplier = 1
 	for _, tier in Gameplay.Combo.Tiers do
@@ -151,6 +156,7 @@ local function party()
 			EffectService.Apply(character, effectId, nil, Color3.fromHSV(math.random(), 0.8, 1))
 		end
 		PlayerService.AddCoins(player, bonus)
+		ChallengeService.Progress(player, "Party")
 	end
 	NotifyService.All(`🎉 FÊTE DES POTIONS ! Tout le monde gagne +{bonus} pièces !`, "success")
 	task.wait(Event.PartySeconds)
