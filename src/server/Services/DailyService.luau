@@ -61,7 +61,7 @@ local function ensureToday(player: Player)
 	local reward = rewards[math.min(daily.Streak, #rewards)]
 	local nextReward = rewards[math.min(daily.Streak + 1, #rewards)]
 	-- Pièces données tout de suite (rien n'est perdu si le joueur part avant le message).
-	PlayerService.AddCoins(player, reward)
+	PlayerService.AddCoins(player, reward, "TimedReward", `Connexion_{daily.Streak}`)
 	local streak = daily.Streak
 	task.delay(Config.GiftDelaySeconds, function()
 		if player.Parent then
@@ -89,7 +89,7 @@ function DailyService.RecordServe(player: Player)
 		daily.Served += 1
 		if daily.Served >= Config.ServeGoal then
 			daily.GoalClaimed = true
-			PlayerService.AddCoins(player, Config.ServeReward)
+			PlayerService.AddCoins(player, Config.ServeReward, "TimedReward", "DefiDuJour")
 			NotifyService.Send(
 				player,
 				`📅 Défi du jour réussi ! +{Config.ServeReward} 💰 Nouveau défi demain.`,

@@ -77,7 +77,7 @@ end
 
 local function complete(player: Player, index: number, active: Active)
 	active.Done = true
-	PlayerService.AddCoins(player, active.Def.Reward)
+	PlayerService.AddCoins(player, active.Def.Reward, "Gameplay", `Defi_{active.Def.Id}`)
 	NotifyService.Send(player, `🎯 Défi réussi : {active.Text} ! +{active.Def.Reward} 💰`, "success")
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")

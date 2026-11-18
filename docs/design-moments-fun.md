@@ -31,3 +31,9 @@ Chaque ajout ci-dessous répond à l'un de ces besoins, et au nouvel algorithme 
 - Aucun dégât ni humiliation non consentie : les effets sont drôles, courts (20 s), réversibles.
 - Pas d'achat aléatoire sans chances affichées (voir CLAUDE.md).
 - Textes courts, emojis, gros boutons : lisible sur téléphone.
+
+## Mesurer (Creator Hub → Analytics, après publication)
+- **Entonnoir d'accueil** : étapes 1 à 6 du guide (prendre → verser → mélanger → remplir → servir → terminé).
+  Une grosse chute à une étape = consigne à clarifier en priorité.
+- **Économie** : pièces gagnées par source (services, défis, cadeau du jour, fête, secrets, achats Robux)
+  et dépensées par article (Armoire, Déco) → équilibrer les prix.

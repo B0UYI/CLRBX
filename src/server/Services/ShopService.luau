@@ -155,7 +155,7 @@ local function party()
 			local effectId = pool[math.random(1, #pool)]
 			EffectService.Apply(character, effectId, nil, Color3.fromHSV(math.random(), 0.8, 1))
 		end
-		PlayerService.AddCoins(player, bonus)
+		PlayerService.AddCoins(player, bonus, "Gameplay", "FeteDesPotions")
 		ChallengeService.Progress(player, "Party")
 	end
 	NotifyService.All(`🎉 FÊTE DES POTIONS ! Tout le monde gagne +{bonus} pièces !`, "success")
@@ -231,7 +231,7 @@ function ShopService.Discover(recipe: Recipes.Recipe, player: Player?)
 	local data = player and DataService.Get(player)
 	if player and data and not data.Secrets[recipe.Id] then
 		data.Secrets[recipe.Id] = true
-		PlayerService.AddCoins(player, Gameplay.Discovery.BonusCoins)
+		PlayerService.AddCoins(player, Gameplay.Discovery.BonusCoins, "Gameplay", `Secret_{recipe.Id}`)
 		NotifyService.Send(
 			player,
 			`📖 Nouvelle recette dans ta collection ! +{Gameplay.Discovery.BonusCoins} pièces 💰`,

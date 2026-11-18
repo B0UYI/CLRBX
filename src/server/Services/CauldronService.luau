@@ -14,6 +14,7 @@ local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
 local ItemService = require(script.Parent.ItemService)
 local NotifyService = require(script.Parent.NotifyService)
+local OnboardingService = require(script.Parent.OnboardingService)
 local PlayerService = require(script.Parent.PlayerService)
 local ShopService = require(script.Parent.ShopService)
 local WorldService = require(script.Parent.WorldService)
@@ -158,6 +159,7 @@ local function onPour(player: Player)
 		held.Tool:Destroy()
 	end
 	refresh()
+	OnboardingService.Advance(player, "Poured")
 	if #contents >= Config.MinIngredients then
 		NotifyService.Send(player, "Mélange (F) !", "info")
 	end
@@ -171,6 +173,7 @@ local function onBrew(player: Player)
 		local recipeId = readyRecipeId
 		if recipeId then
 			PlayerService.Give(player, ItemService.MakePotion(recipeId))
+			OnboardingService.Advance(player, "Collected")
 			NotifyService.Send(player, `Tu as une {Recipes.ById[recipeId].Name} ! Sers-la ou bois-la.`, "success")
 		end
 		reset()
@@ -186,6 +189,7 @@ local function onBrew(player: Player)
 
 	status = "Brewing"
 	refresh()
+	OnboardingService.Advance(player, "Brewed")
 	local recipe = Recipes.Find(contents)
 	local brewer = player
 	-- Pass « Chaudron express » : potion presque instantanée.

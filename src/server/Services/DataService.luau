@@ -20,6 +20,8 @@ export type PlayerData = {
 	Daily: { Day: number, Streak: number, Served: number, GoalClaimed: boolean },
 	-- Derniers achats Robux traités (anti double-attribution).
 	PurchaseIds: { string },
+	-- Guide des nouveaux joueurs terminé.
+	Onboarded: boolean,
 }
 
 local TEMPLATE: PlayerData = {
@@ -30,6 +32,7 @@ local TEMPLATE: PlayerData = {
 	Settings = { NoSplash = false },
 	Daily = { Day = 0, Streak = 0, Served = 0, GoalClaimed = false },
 	PurchaseIds = {},
+	Onboarded = false,
 }
 
 local DataService = {}

@@ -14,6 +14,7 @@ local DailyService = require(script.Parent.DailyService)
 local EffectService = require(script.Parent.EffectService)
 local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
+local OnboardingService = require(script.Parent.OnboardingService)
 local PlayerService = require(script.Parent.PlayerService)
 local ShopService = require(script.Parent.ShopService)
 local UpgradeService = require(script.Parent.UpgradeService)
@@ -157,6 +158,8 @@ local function spawnCustomer(spotIndex: number)
 	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
 	local head = model:FindFirstChild("Head") :: BasePart
 	model.Name = "Client"
+	-- Commande lisible par le guide côté client (GuideController).
+	model:SetAttribute("OrderId", recipe.Id)
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	model:PivotTo(CFrame.new(WorldService.CustomerEntry))
 	for _, descendant in model:GetDescendants() do
@@ -276,7 +279,7 @@ local function spawnCustomer(spotIndex: number)
 					multiplier *= 2 -- pass « Pièces ×2 »
 				end
 				local total = math.floor((recipe.Value + tip) * multiplier)
-				PlayerService.AddCoins(player, total)
+				PlayerService.AddCoins(player, total, "Gameplay", `Service_{recipe.Id}`)
 				local bonus = if multiplier > 1 then ` x{multiplier}` else ""
 				NotifyService.Send(player, `+{total} pièces 💰{bonus}`, "success")
 				FxService.Sound(root, "Cash")
@@ -286,6 +289,7 @@ local function spawnCustomer(spotIndex: number)
 				)
 				ChallengeService.Progress(player, "Serve")
 				DailyService.RecordServe(player)
+				OnboardingService.Advance(player, "Served")
 				ChallengeService.Progress(player, "ServeRecipe", 1, recipe.Id)
 				ChallengeService.Progress(player, "Combo", ShopService.Combo())
 				if kind == "VIP" then

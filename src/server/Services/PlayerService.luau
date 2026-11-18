@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Gameplay = require(Shared.Config.Gameplay)
+local Analytics = require(script.Parent.Parent.Util.Analytics)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 
@@ -21,12 +22,9 @@ local ITEM_LIST = "Items"
 
 local ONBOARDING = {
 	{ 1, "Bienvenue à Potion Panique ! 🧪" },
-	{ 4, "1. Regarde la commande d'un client : elle indique les ingrédients" },
-	{ 8, "2. Remplis ton panier aux étagères (E), jusqu'à 3 ingrédients" },
-	{ 12, "3. Verse le panier dans le chaudron (E), puis mélange (F)" },
-	{ 16, "4. Sers la potion au client 💰 — ou bois-la (clic) pour rire !" },
-	{ 22, "🏆 Le GRAND CHAUDRON arrive bientôt : servez vite ensemble pour la fête !" },
-	{ 28, "✨ 3 recettes secrètes se cachent… Expérimente au chaudron !" },
+	{ 6, "Suis le rayon jaune : il te montre quoi faire 👉", true },
+	{ 40, "🏆 Le GRAND CHAUDRON arrive bientôt : servez vite ensemble pour la fête !" },
+	{ 60, "✨ 3 recettes secrètes se cachent… Expérimente au chaudron !" },
 }
 
 local function setupPlayer(player: Player)
@@ -41,7 +39,9 @@ local function setupPlayer(player: Player)
 
 	for _, step in ONBOARDING do
 		task.delay(step[1], function()
-			if player.Parent then
+			-- step[3] = message réservé aux joueurs qui suivent encore le guide.
+			local guideOnly = step[3] == true
+			if player.Parent and not (guideOnly and player:GetAttribute("GuideStep") == 0) then
 				NotifyService.Send(player, step[2], "info")
 			end
 		end)
@@ -115,19 +115,21 @@ function PlayerService.GetCoins(player: Player): number
 	return if data then data.Coins else 0
 end
 
-function PlayerService.AddCoins(player: Player, amount: number)
+-- reason : type de transaction pour les statistiques ("Gameplay", "IAP", "TimedReward"…), sku : détail.
+function PlayerService.AddCoins(player: Player, amount: number, reason: string?, sku: string?)
 	assert(amount >= 0 and amount == math.floor(amount), "Montant invalide")
 	local data = DataService.Get(player)
 	if data then
 		data.Coins += amount
 		syncCoins(player)
+		Analytics.Coins(player, amount, data.Coins, reason or "Gameplay", sku)
 	else
 		pendingCoins[player] = (pendingCoins[player] or 0) + amount
 	end
 end
 
 -- Retire `amount` pièces si le joueur en a assez. Renvoie true si payé.
-function PlayerService.TrySpend(player: Player, amount: number): boolean
+function PlayerService.TrySpend(player: Player, amount: number, sku: string?): boolean
 	assert(amount > 0 and amount == math.floor(amount), "Montant invalide")
 	local data = DataService.Get(player)
 	if not data or data.Coins < amount then
@@ -135,6 +137,7 @@ function PlayerService.TrySpend(player: Player, amount: number): boolean
 	end
 	data.Coins -= amount
 	syncCoins(player)
+	Analytics.Coins(player, -amount, data.Coins, "Shop", sku)
 	return true
 end
 

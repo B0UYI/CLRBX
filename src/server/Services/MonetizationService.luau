@@ -71,7 +71,7 @@ local function grantProduct(buyer: Player, product: Monetization.Product): boole
 		NotifyService.All(`🎊 {buyer.DisplayName} a offert une POTION FARCE à tout le serveur !`, "boom")
 		return true
 	elseif product.Coins then
-		PlayerService.AddCoins(buyer, product.Coins)
+		PlayerService.AddCoins(buyer, product.Coins, "IAP", product.Key)
 		NotifyService.Send(buyer, `💰 Merci ! +{product.Coins} pièces`, "success")
 		celebrate(buyer)
 		return true

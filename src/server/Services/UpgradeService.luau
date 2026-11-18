@@ -127,7 +127,7 @@ local function onBuy(player: Player, upgrade: Upgrades.Upgrade, pedestal: BasePa
 		return
 	end
 	local missing = upgrade.Price - data.Coins
-	if not PlayerService.TrySpend(player, upgrade.Price) then
+	if not PlayerService.TrySpend(player, upgrade.Price, upgrade.Id) then
 		NotifyService.Send(player, `Il te manque {missing} pièces 💰 Sers des clients !`, "warning")
 		return
 	end

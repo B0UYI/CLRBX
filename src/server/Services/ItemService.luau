@@ -11,6 +11,7 @@ local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local ChallengeService = require(script.Parent.ChallengeService)
 local EffectService = require(script.Parent.EffectService)
 local NotifyService = require(script.Parent.NotifyService)
+local OnboardingService = require(script.Parent.OnboardingService)
 local PlayerService = require(script.Parent.PlayerService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local WorldService = require(script.Parent.WorldService)
@@ -98,6 +99,7 @@ local function onShelf(player: Player, ingredientId: string)
 	end
 	table.insert(items, ingredientId)
 	PlayerService.Give(player, ItemService.MakeBasket(items))
+	OnboardingService.Advance(player, "TookIngredient")
 end
 
 function ItemService:Start()

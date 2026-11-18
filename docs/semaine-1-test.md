@@ -3,7 +3,7 @@
 ## Lancer le test
 1. PowerShell : `cd $HOME\Documents\CLRBX`, puis `git pull`, puis `rojo serve` (laisser ouvert).
 2. Studio (jeu arrêté) : Plugins → Rojo → **Connect**.
-3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (17 services)`.
+3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (18 services)`.
 
 ## Ce que tu dois voir
 - Une boutique derrière le point d'apparition : sol en pierre, porte « POTION PANIQUE », comptoir, chaudron noir, 6 étagères avec des boules lumineuses, et le **grimoire** au mur du fond.
@@ -63,6 +63,12 @@
 - [ ] Bocaux colorés sur les étagères, feu de bois sous le chaudron, appliques lumineuses, lucioles.
 - [ ] Ça reste fluide (sinon dis-le : on baissera les lucioles / lumières).
 
+## Nouveautés v8 (accueil des nouveaux) à tester
+- [ ] Au 1er lancement : bandeau jaune en bas « 1/5 · Prends : Racine… » + **rayon jaune** de ton personnage vers l'étagère.
+- [ ] Le rayon passe au chaudron (étapes 2 à 4), puis au client qui veut ta potion (étape 5).
+- [ ] Après le 1er service : « 🎓 Bravo, tu sais tout faire ! », confettis, le guide disparaît.
+- [ ] En Studio non publié, les données ne sont pas gardées : le guide revient à chaque ▶ (normal).
+
 ## Limites connues (normal à ce stade)
 - Sauvegarde réelle seulement une fois le jeu publié + accès API activé (voir README).
 - Décor en blocs simples, sans son.
@@ -74,6 +80,7 @@
 
 ## Historique
 - v1 : premier prototype.
+- v8 : guide des nouveaux joueurs (5 étapes, rayon lumineux) + statistiques Roblox (entonnoir d'accueil, pièces gagnées/dépensées).
 - v7 : ambiance (lumière, brume, halo, murs, parquet, bocaux, feu, appliques, lucioles).
 - v6 : lancer de potions + protection, cadeau quotidien + défi du jour, game passes/produits + magasin, décorations.
 - v5 : défis personnels (3 actifs, renouvelés, récompenses en pièces).
