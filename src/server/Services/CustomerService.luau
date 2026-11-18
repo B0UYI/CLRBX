@@ -1,9 +1,11 @@
 --!strict
 -- Clients PNJ : ils entrent, commandent une potion au comptoir, attendent, paient (ou repartent).
 
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
 local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
@@ -17,6 +19,13 @@ local CustomerService = {}
 local Config = Gameplay.Customers
 local occupied: { [number]: boolean } = {}
 local serveCooldown = Cooldown.new(0.3)
+
+-- Les clients ne se bloquent pas entre eux.
+local COLLISION_GROUP = "Customers"
+-- Animation de marche R15 par défaut de Roblox.
+local WALK_ANIMATION_ID = "rbxassetid://507777826"
+-- Distance au-delà de laquelle un client coincé est replacé directement.
+local SNAP_DISTANCE = 2.5
 
 local SKIN_TONES = {
 	Color3.fromRGB(255, 220, 177),
@@ -50,6 +59,9 @@ local function createModel(): Model?
 end
 
 local function walkTo(humanoid: Humanoid, target: Vector3)
+	if not humanoid.Parent then
+		return
+	end
 	local arrived = false
 	local connection = humanoid.MoveToFinished:Connect(function()
 		arrived = true
@@ -60,6 +72,37 @@ local function walkTo(humanoid: Humanoid, target: Vector3)
 		elapsed += task.wait(0.1)
 	end
 	connection:Disconnect()
+end
+
+-- Trajet porte -> point d'approche (dans l'axe de la place) -> place au comptoir.
+-- Passer par l'axe de la place évite de couper devant les autres clients.
+local function approachPoint(spot: Vector3): Vector3
+	return Vector3.new(spot.X, spot.Y, (spot.Z + WorldService.CustomerEntry.Z) / 2)
+end
+
+local function playWalk(humanoid: Humanoid): AnimationTrack?
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = humanoid
+	end
+	local animation = Instance.new("Animation")
+	animation.AnimationId = WALK_ANIMATION_ID
+	local ok, track = pcall(function()
+		return (animator :: Animator):LoadAnimation(animation)
+	end)
+	if ok and track then
+		track.Looped = true
+		track:Play()
+		return track
+	end
+	return nil
+end
+
+local function stopWalk(track: AnimationTrack?)
+	if track then
+		track:Stop()
+	end
 end
 
 local function freeSpot(): number?
@@ -86,6 +129,11 @@ local function spawnCustomer(spotIndex: number)
 	model.Name = "Client"
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	model:PivotTo(CFrame.new(WorldService.CustomerEntry))
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.CollisionGroup = COLLISION_GROUP
+		end
+	end
 	model.Parent = WorldService.Folder
 	pcall(function()
 		root:SetNetworkOwner(nil) -- le serveur pilote le PNJ
@@ -93,7 +141,7 @@ local function spawnCustomer(spotIndex: number)
 
 	-- Bulle de commande.
 	local bubble = Instance.new("BillboardGui")
-	bubble.Size = UDim2.fromOffset(230, 60)
+	bubble.Size = UDim2.fromOffset(240, if Config.ShowRecipeHint then 90 else 60)
 	bubble.StudsOffset = Vector3.new(0, 3, 0)
 	bubble.MaxDistance = 70
 	bubble.Adornee = head
@@ -115,6 +163,12 @@ local function spawnCustomer(spotIndex: number)
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = label
 
+	local hintNames = {}
+	for _, id in recipe.Ingredients do
+		table.insert(hintNames, Ingredients.ById[id].ShortName)
+	end
+	local recipeHint = table.concat(hintNames, " + ")
+
 	local served = false
 	local leaving = false
 	local remaining = Config.PatienceSeconds
@@ -132,21 +186,28 @@ local function spawnCustomer(spotIndex: number)
 		label.Text = message
 		task.delay(delaySeconds, function()
 			occupied[spotIndex] = nil
-			if humanoid.Parent then
-				walkTo(humanoid, WorldService.CustomerEntry)
-			end
+			local track = playWalk(humanoid)
+			walkTo(humanoid, approachPoint(WorldService.CustomerSpots[spotIndex]))
+			walkTo(humanoid, WorldService.CustomerEntry)
+			stopWalk(track)
 			model:Destroy()
 		end)
 	end
 
 	task.spawn(function()
-		walkTo(humanoid, WorldService.CustomerSpots[spotIndex])
+		local spot = WorldService.CustomerSpots[spotIndex]
+		local track = playWalk(humanoid)
+		walkTo(humanoid, approachPoint(spot))
+		walkTo(humanoid, spot)
+		stopWalk(track)
 		if not model.Parent then
 			occupied[spotIndex] = nil
 			return
 		end
-		local spot = WorldService.CustomerSpots[spotIndex]
-		model:PivotTo(CFrame.lookAt(root.Position, Vector3.new(root.Position.X, root.Position.Y, spot.Z - 10)))
+		-- Coincé en route ? On le replace à sa place, face au comptoir.
+		local flat = Vector3.new(spot.X, root.Position.Y, spot.Z)
+		local position = if (root.Position - flat).Magnitude > SNAP_DISTANCE then flat else root.Position
+		model:PivotTo(CFrame.lookAt(position, Vector3.new(position.X, position.Y, spot.Z - 10)))
 
 		local newPrompt = Instance.new("ProximityPrompt")
 		newPrompt.ActionText = "Servir"
@@ -188,7 +249,9 @@ local function spawnCustomer(spotIndex: number)
 		end)
 
 		while not served and remaining > 0 and model.Parent do
-			label.Text = `🧪 {recipe.Name}\n⏳ {remaining} s`
+			label.Text = if Config.ShowRecipeHint
+				then `🧪 {recipe.Name}\n{recipeHint}\n⏳ {remaining} s`
+				else `🧪 {recipe.Name}\n⏳ {remaining} s`
 			task.wait(1)
 			remaining -= 1
 		end
@@ -196,6 +259,13 @@ local function spawnCustomer(spotIndex: number)
 			leave("Trop lent… 😤", 1.5)
 		end
 	end)
+end
+
+function CustomerService:Init()
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup(COLLISION_GROUP)
+	end)
+	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, false)
 end
 
 function CustomerService:Start()

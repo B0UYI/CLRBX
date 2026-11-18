@@ -123,7 +123,7 @@ local function buildRecipeBoard(folder: Folder)
 	for index, recipe in Recipes.List do
 		local names = {}
 		for _, id in recipe.Ingredients do
-			table.insert(names, Ingredients.ById[id].Name)
+			table.insert(names, Ingredients.ById[id].ShortName)
 		end
 		line(`{recipe.Name} = {table.concat(names, " + ")}`, 44, recipe.Color, index)
 	end
@@ -195,8 +195,8 @@ local function buildCauldron(folder: Folder)
 	bubbles.Parent = attachment
 
 	local label = makeBillboard(liquid, 4.5, "Chaudron vide", UDim2.fromOffset(260, 60))
-	local pour = makePrompt(body, "Verser l'ingrédient", "Chaudron", Enum.KeyCode.E)
-	local brew = makePrompt(body, "Mélanger", "Chaudron", Enum.KeyCode.F, 0.5)
+	local pour = makePrompt(body, "Verser le panier", "Chaudron", Enum.KeyCode.E)
+	local brew = makePrompt(body, "Mélanger", "Chaudron", Enum.KeyCode.F)
 	brew.UIOffset = Vector2.new(0, 80) -- évite que les deux invites se superposent
 
 	WorldService.Cauldron = {

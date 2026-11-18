@@ -1,11 +1,13 @@
 --!strict
--- Fabrique les objets tenus en main (ingrédients, potions) et gère les étagères et le fait de boire.
+-- Fabrique les objets tenus en main (panier d'ingrédients, potions),
+-- gère les étagères et le fait de boire une potion.
 
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
+local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local EffectService = require(script.Parent.EffectService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -14,8 +16,8 @@ local WorldService = require(script.Parent.WorldService)
 
 local ItemService = {}
 
-local ITEM_KIND, ITEM_ID = PlayerService.ItemAttributes()
-local shelfCooldown = Cooldown.new(0.3)
+local ITEM_KIND, ITEM_ID, ITEM_LIST = PlayerService.ItemAttributes()
+local shelfCooldown = Cooldown.new(0.15)
 
 local function makeTool(name: string, color: Color3, shape: Enum.PartType, size: Vector3): Tool
 	local tool = Instance.new("Tool")
@@ -35,12 +37,20 @@ local function makeTool(name: string, color: Color3, shape: Enum.PartType, size:
 	return tool
 end
 
-function ItemService.MakeIngredient(ingredientId: string): Tool
-	local ingredient = Ingredients.ById[ingredientId]
-	assert(ingredient, `Ingrédient inconnu : {ingredientId}`)
-	local tool = makeTool(ingredient.Name, ingredient.Color, Enum.PartType.Ball, Vector3.new(1, 1, 1))
-	tool:SetAttribute(ITEM_KIND, "Ingredient")
-	tool:SetAttribute(ITEM_ID, ingredientId)
+-- Panier contenant 1 à BasketSize ingrédients (couleur = dernier ingrédient ajouté).
+function ItemService.MakeBasket(items: { string }): Tool
+	assert(#items > 0, "Panier vide")
+	local names = {}
+	for _, id in items do
+		local ingredient = Ingredients.ById[id]
+		assert(ingredient, `Ingrédient inconnu : {id}`)
+		table.insert(names, ingredient.ShortName)
+	end
+	local last = Ingredients.ById[items[#items]]
+	local tool =
+		makeTool(`Panier : {table.concat(names, " + ")}`, last.Color, Enum.PartType.Ball, Vector3.new(1.2, 1.2, 1.2))
+	tool:SetAttribute(ITEM_KIND, "Basket")
+	tool:SetAttribute(ITEM_LIST, table.concat(items, ","))
 	return tool
 end
 
@@ -70,13 +80,28 @@ function ItemService.MakePotion(recipeId: string): Tool
 	return tool
 end
 
+local function onShelf(player: Player, ingredientId: string)
+	if not shelfCooldown:try(player) then
+		return
+	end
+	local held = PlayerService.GetHeld(player)
+	if held and held.Kind == "Potion" then
+		NotifyService.Send(player, "Tu tiens une potion : sers-la ou bois-la d'abord !", "warning")
+		return
+	end
+	local items = if held and held.Kind == "Basket" then held.Items else {}
+	if #items >= Gameplay.Player.BasketSize then
+		NotifyService.Send(player, "Panier plein ! Verse-le dans le chaudron (E)", "warning")
+		return
+	end
+	table.insert(items, ingredientId)
+	PlayerService.Give(player, ItemService.MakeBasket(items))
+end
+
 function ItemService:Start()
 	for _, shelf in WorldService.Shelves do
 		shelf.Prompt.Triggered:Connect(function(player: Player)
-			if not shelfCooldown:try(player) then
-				return
-			end
-			PlayerService.Give(player, ItemService.MakeIngredient(shelf.IngredientId))
+			onShelf(player, shelf.IngredientId)
 		end)
 	end
 	Players.PlayerRemoving:Connect(function(player)

@@ -58,7 +58,7 @@ local function refresh()
 		else
 			local names = {}
 			for _, id in contents do
-				table.insert(names, Ingredients.ById[id].Name)
+				table.insert(names, Ingredients.ById[id].ShortName)
 			end
 			cauldron.Label.Text = `{table.concat(names, " + ")}\n({#contents}/{Config.MaxIngredients})`
 		end
@@ -127,19 +127,35 @@ local function onPour(player: Player)
 		return
 	end
 	local held = PlayerService.GetHeld(player)
-	if not held or held.Kind ~= "Ingredient" or not Ingredients.ById[held.Id] then
-		NotifyService.Send(player, "Prends d'abord un ingrédient sur une étagère", "warning")
+	if not held or held.Kind ~= "Basket" or #held.Items == 0 then
+		NotifyService.Send(player, "Remplis d'abord ton panier aux étagères (E)", "warning")
 		return
 	end
-	if #contents >= Config.MaxIngredients then
+	local space = Config.MaxIngredients - #contents
+	if space <= 0 then
 		NotifyService.Send(player, "Le chaudron est plein : mélange-le (F) !", "warning")
 		return
 	end
-	held.Tool:Destroy()
-	table.insert(contents, held.Id)
+
+	-- Verse ce qui rentre ; le reste reste dans le panier.
+	local leftover = {}
+	for _, id in held.Items do
+		if Ingredients.ById[id] then
+			if #contents < Config.MaxIngredients then
+				table.insert(contents, id)
+			else
+				table.insert(leftover, id)
+			end
+		end
+	end
+	if #leftover > 0 then
+		PlayerService.Give(player, ItemService.MakeBasket(leftover))
+	else
+		held.Tool:Destroy()
+	end
 	refresh()
-	if #contents == Config.MinIngredients then
-		NotifyService.Send(player, "Tu peux mélanger (F) ou ajouter un 3e ingrédient", "info")
+	if #contents >= Config.MinIngredients then
+		NotifyService.Send(player, "Mélange (F) !", "info")
 	end
 end
 

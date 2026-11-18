@@ -1,6 +1,6 @@
 --!strict
 -- État des joueurs : pièces (leaderstats) et objet tenu en main.
--- Règle : un joueur tient au plus UN objet (ingrédient ou potion).
+-- Règle : un joueur tient au plus UN objet : un panier d'ingrédients OU une potion.
 -- Semaine 1 : pas encore de sauvegarde (ProfileStore arrive en semaine 2).
 
 local Players = game:GetService("Players")
@@ -11,17 +11,19 @@ local NotifyService = require(script.Parent.NotifyService)
 
 local PlayerService = {}
 
-export type HeldItem = { Tool: Tool, Kind: string, Id: string }
+-- Kind = "Basket" (Items = ingrédients) ou "Potion" (Id = recette).
+export type HeldItem = { Tool: Tool, Kind: string, Id: string, Items: { string } }
 
 local ITEM_KIND = "ItemKind"
 local ITEM_ID = "ItemId"
+local ITEM_LIST = "Items"
 
 local ONBOARDING = {
 	{ 1, "Bienvenue à Potion Panique ! 🧪" },
-	{ 4, "1. Prends un ingrédient sur une étagère (E)" },
-	{ 8, "2. Verse 2 ou 3 ingrédients dans le chaudron, puis mélange (F)" },
-	{ 12, "3. Sers la bonne potion aux clients au comptoir 💰" },
-	{ 16, "Astuce : le grimoire au mur donne les recettes. Tu peux aussi BOIRE une potion (clic) !" },
+	{ 4, "1. Regarde la commande d'un client : elle indique les ingrédients" },
+	{ 8, "2. Remplis ton panier aux étagères (E), jusqu'à 3 ingrédients" },
+	{ 12, "3. Verse le panier dans le chaudron (E), puis mélange (F)" },
+	{ 16, "4. Sers la potion au client 💰 — ou bois-la (clic) pour rire !" },
 }
 
 local function setupPlayer(player: Player)
@@ -32,6 +34,17 @@ local function setupPlayer(player: Player)
 	coins.Value = 0
 	coins.Parent = leaderstats
 	leaderstats.Parent = player
+
+	local function onCharacter(character: Model)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.WalkSpeed = Gameplay.Player.WalkSpeed
+		end
+	end
+	player.CharacterAdded:Connect(onCharacter)
+	if player.Character then
+		task.spawn(onCharacter, player.Character)
+	end
 
 	for _, step in ONBOARDING do
 		task.delay(step[1], function()
@@ -61,10 +74,12 @@ function PlayerService.GetHeld(player: Player): HeldItem?
 	if not tool then
 		return nil
 	end
+	local list = tool:GetAttribute(ITEM_LIST)
 	return {
 		Tool = tool,
 		Kind = tool:GetAttribute(ITEM_KIND) :: string,
-		Id = tool:GetAttribute(ITEM_ID) :: string,
+		Id = (tool:GetAttribute(ITEM_ID) or "") :: string,
+		Items = if type(list) == "string" and list ~= "" then string.split(list, ",") else {},
 	}
 end
 
@@ -99,8 +114,8 @@ function PlayerService.AddCoins(player: Player, amount: number)
 	end
 end
 
-function PlayerService.ItemAttributes(): (string, string)
-	return ITEM_KIND, ITEM_ID
+function PlayerService.ItemAttributes(): (string, string, string)
+	return ITEM_KIND, ITEM_ID, ITEM_LIST
 end
 
 function PlayerService:Start()
