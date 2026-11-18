@@ -116,49 +116,105 @@ function GuideController:Start()
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = label
 
-	local fromAttachment = Instance.new("Attachment")
-	fromAttachment.Name = "GuideDepart"
-	local toAttachment = Instance.new("Attachment")
-	toAttachment.Name = "GuideCible"
-	toAttachment.Position = Vector3.new(0, 3, 0)
-	local beam = Instance.new("Beam")
-	beam.Name = "GuideRayon"
-	beam.Attachment0 = fromAttachment
-	beam.Attachment1 = toAttachment
-	beam.Color = ColorSequence.new(Color3.fromRGB(255, 230, 90))
-	beam.LightEmission = 1
-	beam.Width0 = 0.5
-	beam.Width1 = 0.5
-	beam.FaceCamera = true
-	beam.Segments = 12
-	beam.CurveSize0 = 4
-	beam.Transparency = NumberSequence.new(0.25)
-	beam.Enabled = false
+	-- Rayon lumineux. Les points d'accroche sont recréés quand le personnage ou la cible change :
+	-- un objet détruit (personnage réapparu, client parti) ne peut pas être réutilisé.
+	local beam: Beam? = nil
+	local fromAttachment: Attachment? = nil
+	local toAttachment: Attachment? = nil
+	local currentRoot: BasePart? = nil
+	local currentTarget: BasePart? = nil
+
+	local function clearTarget()
+		if toAttachment then
+			toAttachment:Destroy()
+			toAttachment = nil
+		end
+		currentTarget = nil
+	end
+
+	local function clearAll()
+		clearTarget()
+		if beam then
+			beam:Destroy()
+			beam = nil
+		end
+		if fromAttachment then
+			fromAttachment:Destroy()
+			fromAttachment = nil
+		end
+		currentRoot = nil
+	end
+
+	local function attachRoot(root: BasePart)
+		clearAll()
+		local from = Instance.new("Attachment")
+		from.Name = "GuideDepart"
+		from.Parent = root
+		local newBeam = Instance.new("Beam")
+		newBeam.Name = "GuideRayon"
+		newBeam.Attachment0 = from
+		newBeam.Color = ColorSequence.new(Color3.fromRGB(255, 230, 90))
+		newBeam.LightEmission = 1
+		newBeam.Width0 = 0.5
+		newBeam.Width1 = 0.5
+		newBeam.FaceCamera = true
+		newBeam.Segments = 12
+		newBeam.CurveSize0 = 4
+		newBeam.Transparency = NumberSequence.new(0.25)
+		newBeam.Enabled = false
+		newBeam.Parent = root
+		fromAttachment = from
+		beam = newBeam
+		currentRoot = root
+	end
+
+	local function attachTarget(target: BasePart)
+		clearTarget()
+		local to = Instance.new("Attachment")
+		to.Name = "GuideCible"
+		to.Position = Vector3.new(0, 3, 0)
+		to.Parent = target
+		toAttachment = to
+		currentTarget = target
+		if beam then
+			beam.Attachment1 = to
+		end
+	end
 
 	while true do
 		local step = player:GetAttribute("GuideStep")
 		local shop = workspace:FindFirstChild("PotionShop")
 		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if type(step) == "number" and step > 0 and shop and root and root:IsA("BasePart") then
+		local rootInstance = character and character:FindFirstChild("HumanoidRootPart")
+		local root = if rootInstance and rootInstance:IsA("BasePart") then rootInstance else nil
+		if type(step) == "number" and step > 0 and shop and root then
 			local target, text = guide(step, shop)
 			label.Text = text
 			label.Visible = true
-			if fromAttachment.Parent ~= root then
-				fromAttachment.Parent = root
-				beam.Parent = root
+			if root ~= currentRoot or not (fromAttachment and fromAttachment:IsDescendantOf(workspace)) then
+				attachRoot(root)
 			end
-			if target then
-				if toAttachment.Parent ~= target then
-					toAttachment.Parent = target
+			if target and target:IsDescendantOf(workspace) then
+				if target ~= currentTarget or not (toAttachment and toAttachment:IsDescendantOf(workspace)) then
+					attachTarget(target)
 				end
-				beam.Enabled = true
+				if beam then
+					beam.Enabled = true
+				end
 			else
-				beam.Enabled = false
+				clearTarget()
+				if beam then
+					beam.Enabled = false
+				end
 			end
 		else
 			label.Visible = false
-			beam.Enabled = false
+			if beam then
+				beam.Enabled = false
+			end
+			if type(step) == "number" and step == 0 and currentRoot then
+				clearAll() -- guide terminé : on nettoie
+			end
 		end
 		task.wait(0.2)
 	end
