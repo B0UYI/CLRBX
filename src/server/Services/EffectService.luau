@@ -104,7 +104,7 @@ function EffectService.Apply(model: Model, effectId: string, duration: number?, 
 		end)
 	end
 
-	if effectId == "Fire" then
+	if def.Fire then
 		local fire = Instance.new("Fire")
 		fire.Size = 6
 		fire.Heat = 8

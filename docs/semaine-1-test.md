@@ -23,6 +23,17 @@
 - [ ] Client pas servi en 60 s : il repart « Trop lent… ».
 - [ ] Les 3 clients arrivent tous au comptoir et marchent (animation).
 
+## Nouveautés v3 à tester
+- [ ] Panneau à gauche : niveau de boutique + barre, série, compte à rebours du Grand Chaudron, secrets 0/3.
+- [ ] Au début, seulement 3 recettes commandées ; le grimoire montre les autres avec 🔒 et leur niveau.
+- [ ] Après quelques services : « ⭐ La boutique passe niveau 2 », confettis, nouvelle recette dans le grimoire.
+- [ ] Série : à 3 bonnes potions d'affilée, gains x1,5 ; une erreur annonce « Série perdue ».
+- [ ] Clients 👑 VIP (fond doré, pas de recette affichée) et ⚡ PRESSÉS (fond rose, 25 s).
+- [ ] À 1 min 30 : « LE GRAND CHAUDRON ! », clients plus fréquents, la cuve en verre (à droite de l'entrée) se remplit.
+- [ ] Objectif atteint : 🎉 Fête des potions (confettis géants, tout le monde transformé, pièces bonus).
+- [ ] Recette secrète : verse 3 fois le même ingrédient (essaie Plume ×3) → annonce, +50 pièces, ligne ✨ dans le grimoire.
+- [ ] Son de caisse + confettis à chaque bon service.
+
 ## Limites connues (normal à ce stade)
 - Les pièces ne sont pas sauvegardées (semaine 2).
 - Décor en blocs simples, sans son.
@@ -34,6 +45,8 @@
 
 ## Historique
 - v1 : premier prototype.
+- v3 : Grand Chaudron + Fête des potions, recettes secrètes, niveau de boutique et déblocages,
+  séries, clients VIP / pressés, panneau d'infos, confettis et sons.
 - v2 (retours du 1er test) : recette affichée dans la bulle du client, panier de 3 ingrédients,
   plus aucune touche à maintenir, potion en 1,5 s, marche à 20, clients qui ne se bloquent plus
   entre eux (replacés s'ils restent coincés) et animation de marche.

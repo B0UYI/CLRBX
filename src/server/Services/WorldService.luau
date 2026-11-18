@@ -87,11 +87,13 @@ local function makeBillboard(adornee: BasePart, offsetY: number, text: string, s
 	return label
 end
 
+local grimoireGui: SurfaceGui? = nil
+
 local function buildRecipeBoard(folder: Folder)
 	local board = makePart({
 		Name = "Grimoire",
-		Size = Vector3.new(22, 11, 0.4),
-		Position = Vector3.new(0, FLOOR_TOP + 7.5, -50.7),
+		Size = Vector3.new(22, 13.5, 0.4),
+		Position = Vector3.new(0, FLOOR_TOP + 7.25, -50.7),
 		Color = Color3.fromRGB(60, 40, 30),
 		Parent = folder,
 	})
@@ -100,12 +102,26 @@ local function buildRecipeBoard(folder: Folder)
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	gui.PixelsPerStud = 40
 	gui.Parent = board
+	grimoireGui = gui
+	WorldService.RefreshGrimoire(1, {})
+end
+
+-- Réécrit le grimoire : recettes débloquées, verrouillées (niveau requis) et secrètes.
+function WorldService.RefreshGrimoire(level: number, discovered: { [string]: boolean })
+	local gui = grimoireGui
+	if not gui then
+		return
+	end
+	gui:ClearAllChildren()
 
 	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 6)
+	layout.Padding = UDim.new(0, 4)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = gui
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 10)
+	padding.Parent = gui
 
 	local function line(text: string, height: number, color: Color3, order: number)
 		local label = Instance.new("TextLabel")
@@ -119,15 +135,84 @@ local function buildRecipeBoard(folder: Folder)
 		label.Parent = gui
 	end
 
-	line("📖 GRIMOIRE — POTION PANIQUE", 60, Color3.fromRGB(255, 220, 120), 0)
-	for index, recipe in Recipes.List do
+	local function ingredientList(recipe: Recipes.Recipe): string
 		local names = {}
 		for _, id in recipe.Ingredients do
 			table.insert(names, Ingredients.ById[id].ShortName)
 		end
-		line(`{recipe.Name} = {table.concat(names, " + ")}`, 44, recipe.Color, index)
+		return table.concat(names, " + ")
 	end
-	line("Autre mélange = 💥 BOUM !", 44, Color3.fromRGB(255, 120, 120), #Recipes.List + 1)
+
+	line(`📖 GRIMOIRE — Boutique niveau {level}`, 50, Color3.fromRGB(255, 220, 120), 0)
+	local order = 1
+	for _, recipe in Recipes.List do
+		if recipe.Secret then
+			if discovered[recipe.Id] then
+				line(`✨ {recipe.Name} = {ingredientList(recipe)}`, 34, recipe.Color, 100 + order)
+			else
+				line(
+					"❓ Recette secrète… (indice : parfois, il faut insister)",
+					34,
+					Color3.fromRGB(160, 150, 170),
+					100 + order
+				)
+			end
+		elseif recipe.Level <= level then
+			line(`{recipe.Name} = {ingredientList(recipe)}`, 34, recipe.Color, order)
+		else
+			line(`🔒 {recipe.Name} — niveau {recipe.Level}`, 34, Color3.fromRGB(130, 120, 140), order)
+		end
+		order += 1
+	end
+	line("Autre mélange = 💥 BOUM !", 34, Color3.fromRGB(255, 120, 120), 999)
+end
+
+-- Grand Chaudron (événement collectif) : cuve en verre qui se remplit.
+local GRAND_POS = Vector3.new(22, FLOOR_TOP, -18)
+local GRAND_HEIGHT = 7
+local grandLiquid: Part? = nil
+
+local function buildGrandCauldron(folder: Folder)
+	local body = makePart({
+		Name = "GrandChaudron",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(GRAND_HEIGHT, 10, 10),
+		CFrame = CFrame.new(GRAND_POS + Vector3.new(0, GRAND_HEIGHT / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = Color3.fromRGB(200, 230, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.55,
+		Parent = folder,
+	})
+	grandLiquid = makePart({
+		Name = "GrandLiquide",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 9.2, 9.2),
+		Color = Color3.fromRGB(255, 200, 60),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = body,
+	})
+	makeBillboard(body, GRAND_HEIGHT / 2 + 3, "🏆 GRAND CHAUDRON", UDim2.fromOffset(260, 50))
+	WorldService.SetGrandCauldronFill(0)
+end
+
+function WorldService.SetGrandCauldronFill(fraction: number)
+	local liquid = grandLiquid
+	if not liquid then
+		return
+	end
+	local height = math.max(0.2, (GRAND_HEIGHT - 0.4) * math.clamp(fraction, 0, 1))
+	liquid.Size = Vector3.new(height, 9.2, 9.2)
+	liquid.CFrame = CFrame.new(GRAND_POS + Vector3.new(0, 0.2 + height / 2, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	liquid.Transparency = if fraction <= 0 then 1 else 0
+end
+
+function WorldService.GrandCauldronTop(): Vector3
+	return GRAND_POS + Vector3.new(0, GRAND_HEIGHT + 1, 0)
+end
+
+function WorldService.CauldronTop(): Vector3
+	return CAULDRON_POS + Vector3.new(0, 5, 0)
 end
 
 local function buildShelves(folder: Folder)
@@ -268,6 +353,7 @@ function WorldService:Init()
 	buildRecipeBoard(folder)
 	buildShelves(folder)
 	buildCauldron(folder)
+	buildGrandCauldron(folder)
 
 	folder.Parent = workspace
 end

@@ -24,6 +24,8 @@ local ONBOARDING = {
 	{ 8, "2. Remplis ton panier aux étagères (E), jusqu'à 3 ingrédients" },
 	{ 12, "3. Verse le panier dans le chaudron (E), puis mélange (F)" },
 	{ 16, "4. Sers la potion au client 💰 — ou bois-la (clic) pour rire !" },
+	{ 22, "🏆 Le GRAND CHAUDRON arrive bientôt : servez vite ensemble pour la fête !" },
+	{ 28, "✨ 3 recettes secrètes se cachent… Expérimente au chaudron !" },
 }
 
 local function setupPlayer(player: Player)

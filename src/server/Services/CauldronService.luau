@@ -13,6 +13,7 @@ local EffectService = require(script.Parent.EffectService)
 local ItemService = require(script.Parent.ItemService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
+local ShopService = require(script.Parent.ShopService)
 local WorldService = require(script.Parent.WorldService)
 
 local CauldronService = {}
@@ -183,6 +184,7 @@ local function onBrew(player: Player)
 	status = "Brewing"
 	refresh()
 	local recipe = Recipes.Find(contents)
+	local brewer = player
 	task.delay(Config.BrewSeconds, function()
 		if status ~= "Brewing" then
 			return
@@ -191,6 +193,9 @@ local function onBrew(player: Player)
 			status = "Ready"
 			readyRecipeId = recipe.Id
 			refresh()
+			if recipe.Secret then
+				ShopService.Discover(recipe, if brewer.Parent then brewer else nil)
+			end
 		else
 			explode()
 		end

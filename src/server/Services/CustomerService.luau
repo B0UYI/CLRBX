@@ -10,13 +10,16 @@ local Recipes = require(Shared.Config.Recipes)
 local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local EffectService = require(script.Parent.EffectService)
+local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
+local ShopService = require(script.Parent.ShopService)
 local WorldService = require(script.Parent.WorldService)
 
 local CustomerService = {}
 
 local Config = Gameplay.Customers
+local Specials = Gameplay.Specials
 local occupied: { [number]: boolean } = {}
 local serveCooldown = Cooldown.new(0.3)
 
@@ -114,8 +117,32 @@ local function freeSpot(): number?
 	return nil
 end
 
+type Kind = "Normal" | "VIP" | "Hurry"
+
+local function pickKind(): Kind
+	if ShopService.Level() >= Specials.VipMinLevel and math.random() < Specials.VipChance then
+		return "VIP"
+	elseif math.random() < Specials.HurryChance then
+		return "Hurry"
+	end
+	return "Normal"
+end
+
 local function spawnCustomer(spotIndex: number)
-	local recipe = Recipes.List[math.random(1, #Recipes.List)]
+	local kind = pickKind()
+	local choices = ShopService.OrderableRecipes(kind == "VIP")
+	if #choices == 0 then
+		return
+	end
+	local recipe = choices[math.random(1, #choices)]
+	local patience = if kind == "VIP"
+		then Specials.VipPatienceSeconds
+		elseif kind == "Hurry" then Specials.HurryPatienceSeconds
+		else Config.PatienceSeconds
+	local payMultiplier = if kind == "VIP"
+		then Specials.VipPayMultiplier
+		elseif kind == "Hurry" then Specials.HurryPayMultiplier
+		else 1
 	occupied[spotIndex] = true -- réservé avant la création (qui peut prendre du temps)
 	local model = createModel()
 	if not model then
@@ -148,7 +175,10 @@ local function spawnCustomer(spotIndex: number)
 	bubble.Parent = head
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundColor3 = Color3.new(1, 1, 1)
+	label.BackgroundColor3 = if kind == "VIP"
+		then Color3.fromRGB(255, 215, 90)
+		elseif kind == "Hurry" then Color3.fromRGB(255, 180, 180)
+		else Color3.new(1, 1, 1)
 	label.TextColor3 = Color3.fromRGB(30, 20, 40)
 	label.TextScaled = true
 	label.Font = Enum.Font.FredokaOne
@@ -171,7 +201,7 @@ local function spawnCustomer(spotIndex: number)
 
 	local served = false
 	local leaving = false
-	local remaining = Config.PatienceSeconds
+	local remaining = patience
 	local prompt: ProximityPrompt? = nil
 
 	local function leave(message: string, delaySeconds: number)
@@ -236,25 +266,37 @@ local function spawnCustomer(spotIndex: number)
 			EffectService.Apply(model, given.Effect, nil, given.Color)
 			local effectName = EffectService.GetName(given.Effect)
 			if given.Id == recipe.Id then
-				local tip = math.floor(recipe.Value * Config.TipMax * remaining / Config.PatienceSeconds)
-				local total = recipe.Value + tip
+				local tip = math.floor(recipe.Value * Config.TipMax * remaining / patience)
+				local multiplier = payMultiplier * ShopService.ComboMultiplier() * ShopService.EventMultiplier()
+				local total = math.floor((recipe.Value + tip) * multiplier)
 				PlayerService.AddCoins(player, total)
-				NotifyService.Send(player, `+{total} pièces 💰 (pourboire : {tip})`, "success")
+				local bonus = if multiplier > 1 then ` x{multiplier}` else ""
+				NotifyService.Send(player, `+{total} pièces 💰{bonus}`, "success")
+				FxService.Sound(root, "Cash")
+				FxService.Confetti(root.Position + Vector3.new(0, 3, 0), if kind == "VIP" then 120 else 40)
+				ShopService.RecordServe(
+					if kind == "VIP" then Gameplay.Progression.XpPerVipServe else Gameplay.Progression.XpPerServe
+				)
 				leave(`Glou glou… Parfait ! 😄 ({effectName})`, Config.ReactionSeconds)
 			else
 				NotifyService.Send(player, `Oups ! Mauvaise potion… le client devient {effectName} 😂`, "boom")
+				ShopService.BreakCombo("mauvaise potion")
 				leave("Hé !! Ce n'est pas ma commande ! 😠", Config.ReactionSeconds)
 			end
 		end)
 
 		while not served and remaining > 0 and model.Parent do
+			local prefix = if kind == "VIP" then "👑 VIP : " elseif kind == "Hurry" then "⚡ PRESSÉ : " else "🧪 "
+			-- Le VIP ne donne pas la recette : il faut la connaître (grimoire) !
+			local hint = if kind == "VIP" then "❓ Regarde le grimoire" else recipeHint
 			label.Text = if Config.ShowRecipeHint
-				then `🧪 {recipe.Name}\n{recipeHint}\n⏳ {remaining} s`
-				else `🧪 {recipe.Name}\n⏳ {remaining} s`
+				then `{prefix}{recipe.Name}\n{hint}\n⏳ {remaining} s`
+				else `{prefix}{recipe.Name}\n⏳ {remaining} s`
 			task.wait(1)
 			remaining -= 1
 		end
 		if not served then
+			ShopService.BreakCombo("un client est parti")
 			leave("Trop lent… 😤", 1.5)
 		end
 	end)
@@ -272,9 +314,14 @@ function CustomerService:Start()
 		serveCooldown:forget(player)
 	end)
 	task.spawn(function()
+		local sinceLast = 0
 		while true do
-			task.wait(Config.SpawnIntervalSeconds)
-			if #Players:GetPlayers() > 0 then
+			sinceLast += task.wait(0.5)
+			local interval = if ShopService.IsRush()
+				then Gameplay.GrandCauldron.RushSpawnIntervalSeconds
+				else Config.SpawnIntervalSeconds
+			if sinceLast >= interval and #Players:GetPlayers() > 0 then
+				sinceLast = 0
 				local waiting = 0
 				for _ in occupied do
 					waiting += 1
