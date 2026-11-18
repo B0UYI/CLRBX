@@ -71,6 +71,15 @@ return {
 		PartySeconds = 6,
 	},
 
+	-- Asperger un autre joueur avec une potion (touche R).
+	Splash = {
+		MaxDistance = 14,
+		ThrowCooldownSeconds = 2,
+		-- Un même joueur ne peut pas être aspergé plus souvent que ça (anti-harcèlement).
+		TargetCooldownSeconds = 8,
+		ToggleCooldownSeconds = 1,
+	},
+
 	Discovery = {
 		BonusCoins = 50,
 	},

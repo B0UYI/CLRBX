@@ -50,7 +50,8 @@ local function pick(player: Player): Active?
 	local level = shopLevel()
 	local candidates = {}
 	for _, def in Challenges.Pool do
-		if not taken[def.Id] and (def.MinLevel or 1) <= level then
+		local enoughPlayers = #Players:GetPlayers() >= (def.MinPlayers or 1)
+		if not taken[def.Id] and (def.MinLevel or 1) <= level and enoughPlayers then
 			table.insert(candidates, def)
 		end
 	end

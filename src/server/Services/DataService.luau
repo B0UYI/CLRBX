@@ -15,6 +15,13 @@ export type PlayerData = {
 	-- Recettes secrètes découvertes par CE joueur : [recipeId] = true
 	Secrets: { [string]: boolean },
 	Served: number,
+	Settings: { NoSplash: boolean },
+	-- Récompense de connexion et défi du jour (Day = numéro du jour UTC).
+	Daily: { Day: number, Streak: number, Served: number, GoalClaimed: boolean },
+	-- Derniers achats Robux traités (anti double-attribution).
+	PurchaseIds: { string },
+	-- Décorations de boutique possédées : [decorId] = true
+	Decor: { [string]: boolean },
 }
 
 local TEMPLATE: PlayerData = {
@@ -22,6 +29,10 @@ local TEMPLATE: PlayerData = {
 	Upgrades = {},
 	Secrets = {},
 	Served = 0,
+	Settings = { NoSplash = false },
+	Daily = { Day = 0, Streak = 0, Served = 0, GoalClaimed = false },
+	PurchaseIds = {},
+	Decor = {},
 }
 
 local DataService = {}
@@ -35,6 +46,11 @@ local loadedCallbacks: { (Player, PlayerData) -> () } = {}
 function DataService.Get(player: Player): PlayerData?
 	local profile = profiles[player]
 	return if profile then profile.Data else nil
+end
+
+-- Profil ProfileStore complet (pour les achats Robux qui doivent attendre la sauvegarde).
+function DataService.GetProfile(player: Player): any
+	return profiles[player]
 end
 
 -- Appelle `callback` pour chaque joueur dont les données sont chargées (déjà ou plus tard).

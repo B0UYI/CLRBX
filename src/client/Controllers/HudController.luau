@@ -89,6 +89,24 @@ function HudController:Start()
 		challengeLabels[index] = makeLabel(panel, 6 + index, 20)
 	end
 
+	-- Bouton de protection contre les aspersions.
+	local protectButton = Instance.new("TextButton")
+	protectButton.LayoutOrder = 50
+	protectButton.Size = UDim2.new(1, 0, 0, 30)
+	protectButton.BackgroundColor3 = Color3.fromRGB(60, 50, 90)
+	protectButton.TextColor3 = Color3.new(1, 1, 1)
+	protectButton.TextScaled = true
+	protectButton.Font = Enum.Font.FredokaOne
+	protectButton.Parent = panel
+	local protectCorner = Instance.new("UICorner")
+	protectCorner.CornerRadius = UDim.new(0, 8)
+	protectCorner.Parent = protectButton
+	local protectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SetSplashProtection") :: RemoteEvent
+	protectButton.Activated:Connect(function()
+		local protected = Players.LocalPlayer:GetAttribute("NoSplash") == true
+		protectRemote:FireServer(not protected)
+	end)
+
 	local function attr(name: string, default: any): any
 		local value = state:GetAttribute(name)
 		return if value == nil then default else value
@@ -144,6 +162,12 @@ function HudController:Start()
 				label.Text = ""
 			end
 		end
+
+		local protected = player:GetAttribute("NoSplash") == true
+		protectButton.Text = if protected
+			then "🛡️ Protégé des potions : OUI"
+			else "💦 Bataille de potions : OUI"
+		protectButton.BackgroundColor3 = if protected then Color3.fromRGB(50, 90, 140) else Color3.fromRGB(60, 50, 90)
 
 		task.wait(0.25)
 	end

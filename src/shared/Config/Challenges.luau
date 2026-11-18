@@ -10,6 +10,7 @@ export type ChallengeDef = {
 	Reward: number,
 	Text: string,
 	MinLevel: number?,
+	MinPlayers: number?,
 }
 
 local Pool: { ChallengeDef } = {
@@ -21,6 +22,8 @@ local Pool: { ChallengeDef } = {
 	{ Id = "drink", Type = "Drink", Goal = 2, Reward = 30, Text = "Bois 2 potions 🧪" },
 	{ Id = "combo5", Type = "Combo", Goal = 5, Reward = 60, Text = "Atteins une série de 5 🔥" },
 	{ Id = "party", Type = "Party", Goal = 1, Reward = 75, Text = "Vis une Fête des potions 🎉" },
+	-- Proposé seulement s'il y a au moins 2 joueurs sur le serveur.
+	{ Id = "splash", Type = "Splash", Goal = 1, Reward = 40, Text = "Asperge un ami 💦", MinPlayers = 2 },
 }
 
 local seen: { [string]: boolean } = {}
