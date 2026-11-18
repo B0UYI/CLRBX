@@ -1,0 +1,14 @@
+# Dépendances Wally (régénérées par `wally install`)
+/Packages/*
+/ServerPackages
+/DevPackages
+# Fichiers Studio générés localement
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+# Système
+.DS_Store
+Thumbs.db
+!/Packages/.gitkeep
