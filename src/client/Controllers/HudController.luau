@@ -89,6 +89,10 @@ function HudController:Start()
 		challengeLabels[index] = makeLabel(panel, 6 + index, 20)
 	end
 
+	local dailyLabel = makeLabel(panel, 20, 20)
+	local streakLabel = makeLabel(panel, 21, 20)
+	streakLabel.TextColor3 = Color3.fromRGB(255, 200, 120)
+
 	-- Bouton de protection contre les aspersions.
 	local protectButton = Instance.new("TextButton")
 	protectButton.LayoutOrder = 50
@@ -162,6 +166,25 @@ function HudController:Start()
 				label.Text = ""
 			end
 		end
+
+		local dailyGoal = player:GetAttribute("DailyGoal")
+		if type(dailyGoal) == "number" then
+			if player:GetAttribute("DailyClaimed") == true then
+				dailyLabel.Text = "📅 Défi du jour réussi ✅ — reviens demain !"
+				dailyLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
+			else
+				local served = player:GetAttribute("DailyServed") or 0
+				local reward = player:GetAttribute("DailyReward") or 0
+				dailyLabel.Text = `📅 Défi du jour : sers {dailyGoal} potions {served}/{dailyGoal} ({reward} 💰)`
+				dailyLabel.TextColor3 = Color3.new(1, 1, 1)
+			end
+		else
+			dailyLabel.Text = ""
+		end
+		local streak = player:GetAttribute("DailyStreak")
+		streakLabel.Text = if type(streak) == "number" and streak > 0
+			then `🎁 Connexion : {streak} jour(s) d'affilée`
+			else ""
 
 		local protected = player:GetAttribute("NoSplash") == true
 		protectButton.Text = if protected

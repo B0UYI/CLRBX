@@ -80,6 +80,15 @@ return {
 		ToggleCooldownSeconds = 1,
 	},
 
+	-- Retour quotidien : cadeau de connexion (série de jours) et défi du jour.
+	Daily = {
+		-- Pièces données le 1er, 2e, … jour d'affilée (le dernier se répète ensuite).
+		LoginRewards = { 50, 75, 100, 125, 150, 200, 300 },
+		ServeGoal = 25,
+		ServeReward = 250,
+		GiftDelaySeconds = 3,
+	},
+
 	Discovery = {
 		BonusCoins = 50,
 	},
