@@ -3,7 +3,7 @@
 ## Lancer le test
 1. PowerShell : `cd $HOME\Documents\CLRBX`, puis `git pull`, puis `rojo serve` (laisser ouvert).
 2. Studio (jeu arrêté) : Plugins → Rojo → **Connect**.
-3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (7 services)`.
+3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (16 services)`.
 
 ## Ce que tu dois voir
 - Une boutique derrière le point d'apparition : sol en pierre, porte « POTION PANIQUE », comptoir, chaudron noir, 6 étagères avec des boules lumineuses, et le **grimoire** au mur du fond.
