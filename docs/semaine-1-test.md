@@ -3,7 +3,7 @@
 ## Lancer le test
 1. PowerShell : `cd $HOME\Documents\CLRBX`, puis `git pull`, puis `rojo serve` (laisser ouvert).
 2. Studio (jeu arrêté) : Plugins → Rojo → **Connect**.
-3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (16 services)`.
+3. Clique sur ▶. Dans **Fenêtre → Sortie** : `[CLRBX] Serveur démarré (17 services)`.
 
 ## Ce que tu dois voir
 - Une boutique derrière le point d'apparition : sol en pierre, porte « POTION PANIQUE », comptoir, chaudron noir, 6 étagères avec des boules lumineuses, et le **grimoire** au mur du fond.
@@ -57,6 +57,12 @@
 - [ ] **🛒 Boutique** (bouton à droite) : fenêtre avec passes et bonus marqués « Bientôt » (normal tant que les Id valent 0).
 - [ ] **Stand Déco** (à droite de la porte) : acheter une décoration l'affiche pour tout le serveur + annonce.
 
+## Nouveautés v7 (ambiance) à regarder
+- [ ] Lumière de fin de journée, brume violette légère, néons qui « brillent » (halo).
+- [ ] Murs latéraux en brique avec frise lumineuse, parquet dans la cuisine.
+- [ ] Bocaux colorés sur les étagères, feu de bois sous le chaudron, appliques lumineuses, lucioles.
+- [ ] Ça reste fluide (sinon dis-le : on baissera les lucioles / lumières).
+
 ## Limites connues (normal à ce stade)
 - Sauvegarde réelle seulement une fois le jeu publié + accès API activé (voir README).
 - Décor en blocs simples, sans son.
@@ -68,6 +74,7 @@
 
 ## Historique
 - v1 : premier prototype.
+- v7 : ambiance (lumière, brume, halo, murs, parquet, bocaux, feu, appliques, lucioles).
 - v6 : lancer de potions + protection, cadeau quotidien + défi du jour, game passes/produits + magasin, décorations.
 - v5 : défis personnels (3 actifs, renouvelés, récompenses en pièces).
 - v4 : sauvegarde (ProfileStore), Armoire du sorcier (5 améliorations), titres, collection de secrets personnelle.
