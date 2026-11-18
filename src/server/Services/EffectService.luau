@@ -23,10 +23,12 @@ function EffectService.GetName(effectId: string): string
 	return if def then def.Name else effectId
 end
 
-function EffectService.Apply(model: Model, effectId: string, duration: number?)
+-- color : couleur de la potion (nuage d'étincelles visible pendant l'effet).
+function EffectService.Apply(model: Model, effectId: string, duration: number?, color: Color3?)
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
-	local root = humanoid and humanoid.RootPart
-	if not humanoid or not root or humanoid.Health <= 0 then
+	local root = humanoid and (humanoid.RootPart or model:FindFirstChild("HumanoidRootPart"))
+	if not humanoid or not root or not root:IsA("BasePart") or humanoid.Health <= 0 then
+		warn(`[EffectService] Impossible d'appliquer {effectId} à {model:GetFullName()} (pas de Humanoid/RootPart)`)
 		return
 	end
 	local def = (Effects :: any)[effectId]
@@ -40,13 +42,41 @@ function EffectService.Apply(model: Model, effectId: string, duration: number?)
 	local cleanups: { () -> () } = {}
 	local alive = true
 
+	-- Effet visuel commun : « pouf » à l'application + étincelles pendant toute la durée.
+	local sparkleColor = color or Color3.new(1, 1, 1)
+	local poofAttachment = Instance.new("Attachment")
+	poofAttachment.Name = "PotionPoof"
+	poofAttachment.Parent = root
+	local poof = Instance.new("ParticleEmitter")
+	poof.Color = ColorSequence.new(sparkleColor)
+	poof.Lifetime = NumberRange.new(0.5, 0.9)
+	poof.Speed = NumberRange.new(8, 14)
+	poof.SpreadAngle = Vector2.new(180, 180)
+	poof.Size = NumberSequence.new(1.2, 0)
+	poof.Enabled = false
+	poof.Parent = poofAttachment
+	poof:Emit(40)
+	local sparkles = Instance.new("Sparkles")
+	sparkles.SparkleColor = sparkleColor
+	sparkles.Parent = root
+	table.insert(cleanups, function()
+		sparkles:Destroy()
+		poofAttachment:Destroy()
+	end)
+
 	if def.Scale then
-		model:ScaleTo(def.Scale)
-		table.insert(cleanups, function()
-			if model.Parent then
-				model:ScaleTo(1)
-			end
+		local ok, err = pcall(function()
+			model:ScaleTo(def.Scale)
 		end)
+		if ok then
+			table.insert(cleanups, function()
+				if model.Parent then
+					model:ScaleTo(1)
+				end
+			end)
+		else
+			warn(`[EffectService] ScaleTo a échoué sur {model:GetFullName()} : {err}`)
+		end
 	end
 
 	if def.WalkSpeedMultiplier then

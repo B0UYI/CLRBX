@@ -229,22 +229,21 @@ local function spawnCustomer(spotIndex: number)
 			end
 			local given = Recipes.ById[held.Id]
 			held.Tool:Destroy()
-			if given and given.Id == recipe.Id then
+			if not given then
+				return
+			end
+			-- Le client boit toujours la potion servie : c'est le spectacle !
+			EffectService.Apply(model, given.Effect, nil, given.Color)
+			local effectName = EffectService.GetName(given.Effect)
+			if given.Id == recipe.Id then
 				local tip = math.floor(recipe.Value * Config.TipMax * remaining / Config.PatienceSeconds)
 				local total = recipe.Value + tip
 				PlayerService.AddCoins(player, total)
 				NotifyService.Send(player, `+{total} pièces 💰 (pourboire : {tip})`, "success")
-				leave("Merci ! 😄", 1.5)
+				leave(`Glou glou… Parfait ! 😄 ({effectName})`, Config.ReactionSeconds)
 			else
-				if given then
-					EffectService.Apply(model, given.Effect)
-					NotifyService.Send(
-						player,
-						`Oups ! Mauvaise potion… le client devient {EffectService.GetName(given.Effect)} 😂`,
-						"boom"
-					)
-				end
-				leave("Hé !! Ce n'est pas ma commande ! 😠", 3)
+				NotifyService.Send(player, `Oups ! Mauvaise potion… le client devient {effectName} 😂`, "boom")
+				leave("Hé !! Ce n'est pas ma commande ! 😠", Config.ReactionSeconds)
 			end
 		end)
 

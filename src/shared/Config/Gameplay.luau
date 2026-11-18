@@ -26,6 +26,8 @@ return {
 		-- Pourboire max (en part de la valeur) si servi instantanément.
 		TipMax = 0.5,
 		WalkTimeoutSeconds = 8,
+		-- Temps pendant lequel le client montre l'effet de la potion avant de partir.
+		ReactionSeconds = 4,
 	},
 
 	Interaction = {

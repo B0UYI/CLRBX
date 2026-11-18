@@ -74,7 +74,7 @@ function ItemService.MakePotion(recipeId: string): Tool
 		end
 		drunk = true
 		tool:Destroy()
-		EffectService.Apply(character, recipe.Effect)
+		EffectService.Apply(character, recipe.Effect, nil, recipe.Color)
 		NotifyService.Send(player, `Glou glou… effet {EffectService.GetName(recipe.Effect)} !`, "success")
 	end)
 	return tool
