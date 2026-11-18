@@ -83,7 +83,9 @@ function EffectService.Apply(model: Model, effectId: string, duration: number?, 
 		local original = humanoid.WalkSpeed
 		humanoid.WalkSpeed = original * def.WalkSpeedMultiplier
 		table.insert(cleanups, function()
-			humanoid.WalkSpeed = original
+			-- Revient à la vitesse de base (qui a pu changer, ex. bottes achetées entre-temps).
+			local base = humanoid:GetAttribute("BaseWalkSpeed")
+			humanoid.WalkSpeed = if type(base) == "number" then base else original
 		end)
 	end
 

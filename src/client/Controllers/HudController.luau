@@ -115,7 +115,9 @@ function HudController:Start()
 			eventLabel.TextColor3 = Color3.new(1, 1, 1)
 		end
 
-		secretsLabel.Text = `✨ Recettes secrètes : {attr("SecretsFound", 0)}/{attr("SecretsTotal", 3)}`
+		local personal = Players.LocalPlayer:GetAttribute("SecretsFound")
+		local found = if type(personal) == "number" then personal else 0
+		secretsLabel.Text = `✨ Mes recettes secrètes : {found}/{attr("SecretsTotal", 3)}`
 		task.wait(0.25)
 	end
 end

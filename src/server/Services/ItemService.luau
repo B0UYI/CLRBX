@@ -7,11 +7,11 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Ingredients = require(Shared.Config.Ingredients)
 local Recipes = require(Shared.Config.Recipes)
-local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local EffectService = require(script.Parent.EffectService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
+local UpgradeService = require(script.Parent.UpgradeService)
 local WorldService = require(script.Parent.WorldService)
 
 local ItemService = {}
@@ -90,7 +90,7 @@ local function onShelf(player: Player, ingredientId: string)
 		return
 	end
 	local items = if held and held.Kind == "Basket" then held.Items else {}
-	if #items >= Gameplay.Player.BasketSize then
+	if #items >= UpgradeService.BasketSize(player) then
 		NotifyService.Send(player, "Panier plein ! Verse-le dans le chaudron (E)", "warning")
 		return
 	end

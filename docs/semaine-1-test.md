@@ -34,8 +34,17 @@
 - [ ] Recette secrète : verse 3 fois le même ingrédient (essaie Plume ×3) → annonce, +50 pièces, ligne ✨ dans le grimoire.
 - [ ] Son de caisse + confettis à chaque bon service.
 
+## Nouveautés v4 à tester
+- [ ] Sortie : `[ProfileStore]: Roblox API services unavailable - data will not be saved` (normal en Studio non publié).
+- [ ] La colonne **Pièces** fonctionne comme avant.
+- [ ] **Armoire du sorcier** (à gauche de l'entrée) : 5 présentoirs, maintenir E pour acheter.
+- [ ] Pas assez de pièces → « Il te manque X pièces ». Achat → confettis + l'invite affiche « Déjà acheté ✅ ».
+- [ ] Panier XL : 5 ingrédients. Bottes : tu cours plus vite (et tu le restes après une potion Éclair).
+- [ ] Titre au-dessus de ta tête : « 🧪 Apprenti », puis « ⚗️ Alchimiste » / « 🧙 Grand Sorcier » après achat.
+- [ ] Recette secrète : « 📖 Nouvelle recette dans ta collection ! +50 », panneau « Mes recettes secrètes 1/3 ».
+
 ## Limites connues (normal à ce stade)
-- Les pièces ne sont pas sauvegardées (semaine 2).
+- Sauvegarde réelle seulement une fois le jeu publié + accès API activé (voir README).
 - Décor en blocs simples, sans son.
 
 ## À me renvoyer
@@ -45,6 +54,7 @@
 
 ## Historique
 - v1 : premier prototype.
+- v4 : sauvegarde (ProfileStore), Armoire du sorcier (5 améliorations), titres, collection de secrets personnelle.
 - v3 : Grand Chaudron + Fête des potions, recettes secrètes, niveau de boutique et déblocages,
   séries, clients VIP / pressés, panneau d'infos, confettis et sons.
 - v2 (retours du 1er test) : recette affichée dans la bulle du client, panier de 3 ingrédients,

@@ -18,7 +18,8 @@ Objectif : revenus. Langue de travail avec le propriétaire : **français**.
 - Le serveur fait autorité sur la monnaie, l'inventaire, la progression et les achats.
 - Tout RemoteEvent/RemoteFunction valide types, bornes et cadence (rate limit) de ses arguments côté serveur.
 - Achats : `MarketplaceService.ProcessReceipt` idempotent, reçu enregistré avant d'accorder.
-- Données joueur : une seule source (ProfileStore), sauvegarde à la sortie et périodique.
+- Données joueur : une seule source, `DataService` (ProfileStore copié dans `src/server/Packages/`, licence dans `third_party/`). Ne jamais modifier ce fichier tiers ; il est exclu de StyLua/Selene.
+- Studio non publié = mode simulé (rien n'est sauvegardé) : normal.
 
 ## Monétisation
 - Game passes (achat unique) + produits de développeur (répétables) + récompenses de connexion.

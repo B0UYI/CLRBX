@@ -38,3 +38,13 @@ Le code du dépôt apparaît dans Studio et se met à jour en direct.
 | `docs` | — | Conception, économie, notes |
 
 Les cartes, modèles 3D et décors se construisent dans Studio ; seul le code vit dans ce dépôt.
+
+## Sauvegarde des données
+
+Les données joueur (pièces, améliorations, recettes secrètes) sont gérées par `DataService` avec
+[ProfileStore](https://github.com/MadStudioRoblox/ProfileStore) (copié dans `src/server/Packages/`).
+
+- En Studio, tant que le jeu n'est **pas publié**, la Sortie affiche
+  `Roblox API services unavailable - data will not be saved` : le jeu marche, mais rien n'est gardé.
+- Pour tester la vraie sauvegarde : publier le jeu (Fichier → Publier sur Roblox), puis
+  **Paramètres du jeu → Sécurité → Activer l'accès de Studio aux services API**.

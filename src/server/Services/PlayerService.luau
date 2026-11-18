@@ -1,12 +1,13 @@
 --!strict
--- État des joueurs : pièces (leaderstats) et objet tenu en main.
+-- État des joueurs : pièces (sauvegardées via DataService, affichées dans leaderstats)
+-- et objet tenu en main.
 -- Règle : un joueur tient au plus UN objet : un panier d'ingrédients OU une potion.
--- Semaine 1 : pas encore de sauvegarde (ProfileStore arrive en semaine 2).
 
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Gameplay = require(Shared.Config.Gameplay)
+local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 
 local PlayerService = {}
@@ -33,20 +34,10 @@ local function setupPlayer(player: Player)
 	leaderstats.Name = "leaderstats"
 	local coins = Instance.new("IntValue")
 	coins.Name = Gameplay.Currency.Name
-	coins.Value = 0
+	-- Si les données sont déjà chargées, on affiche le bon solde tout de suite.
+	coins.Value = PlayerService.GetCoins(player)
 	coins.Parent = leaderstats
 	leaderstats.Parent = player
-
-	local function onCharacter(character: Model)
-		local humanoid = character:WaitForChild("Humanoid", 10)
-		if humanoid and humanoid:IsA("Humanoid") then
-			humanoid.WalkSpeed = Gameplay.Player.WalkSpeed
-		end
-	end
-	player.CharacterAdded:Connect(onCharacter)
-	if player.Character then
-		task.spawn(onCharacter, player.Character)
-	end
 
 	for _, step in ONBOARDING do
 		task.delay(step[1], function()
@@ -107,13 +98,44 @@ function PlayerService.Give(player: Player, tool: Tool)
 	end
 end
 
-function PlayerService.AddCoins(player: Player, amount: number)
-	assert(amount >= 0 and amount == math.floor(amount), "Montant invalide")
+-- Pièces gagnées avant le chargement des données (appliquées au chargement).
+local pendingCoins: { [Player]: number } = {}
+
+local function syncCoins(player: Player)
+	local data = DataService.Get(player)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	local coins = leaderstats and leaderstats:FindFirstChild(Gameplay.Currency.Name)
-	if coins and coins:IsA("IntValue") then
-		coins.Value += amount
+	if data and coins and coins:IsA("IntValue") then
+		coins.Value = data.Coins
 	end
+end
+
+function PlayerService.GetCoins(player: Player): number
+	local data = DataService.Get(player)
+	return if data then data.Coins else 0
+end
+
+function PlayerService.AddCoins(player: Player, amount: number)
+	assert(amount >= 0 and amount == math.floor(amount), "Montant invalide")
+	local data = DataService.Get(player)
+	if data then
+		data.Coins += amount
+		syncCoins(player)
+	else
+		pendingCoins[player] = (pendingCoins[player] or 0) + amount
+	end
+end
+
+-- Retire `amount` pièces si le joueur en a assez. Renvoie true si payé.
+function PlayerService.TrySpend(player: Player, amount: number): boolean
+	assert(amount > 0 and amount == math.floor(amount), "Montant invalide")
+	local data = DataService.Get(player)
+	if not data or data.Coins < amount then
+		return false
+	end
+	data.Coins -= amount
+	syncCoins(player)
+	return true
 end
 
 function PlayerService.ItemAttributes(): (string, string, string)
@@ -121,6 +143,17 @@ function PlayerService.ItemAttributes(): (string, string, string)
 end
 
 function PlayerService:Start()
+	DataService.OnLoaded(function(player: Player, data)
+		local pending = pendingCoins[player]
+		pendingCoins[player] = nil
+		if pending then
+			data.Coins += pending
+		end
+		syncCoins(player)
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		pendingCoins[player] = nil
+	end)
 	Players.PlayerAdded:Connect(setupPlayer)
 	-- En test Studio, le joueur peut arriver avant le démarrage des scripts.
 	for _, player in Players:GetPlayers() do

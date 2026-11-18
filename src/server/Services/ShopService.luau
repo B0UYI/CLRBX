@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Recipes = require(Shared.Config.Recipes)
 local Effects = require(Shared.Config.Effects)
 local Gameplay = require(Shared.Config.Gameplay)
+local DataService = require(script.Parent.DataService)
 local EffectService = require(script.Parent.EffectService)
 local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -201,18 +202,43 @@ function ShopService.BreakCombo(reason: string)
 	publish()
 end
 
--- Recette secrète trouvée pour la première fois sur ce serveur.
+local function publishPersonalSecrets(player: Player)
+	local data = DataService.Get(player)
+	if not data then
+		return
+	end
+	local count = 0
+	for _, recipe in ShopService.SecretRecipes() do
+		if data.Secrets[recipe.Id] then
+			count += 1
+		end
+	end
+	player:SetAttribute("SecretsFound", count)
+end
+
+-- Recette secrète préparée : collection personnelle (sauvegardée, bonus une seule fois par joueur)
+-- et annonce au serveur la première fois qu'elle apparaît sur ce serveur.
 function ShopService.Discover(recipe: Recipes.Recipe, player: Player?)
-	if not recipe.Secret or discovered[recipe.Id] then
+	if not recipe.Secret then
+		return
+	end
+	local data = player and DataService.Get(player)
+	if player and data and not data.Secrets[recipe.Id] then
+		data.Secrets[recipe.Id] = true
+		PlayerService.AddCoins(player, Gameplay.Discovery.BonusCoins)
+		NotifyService.Send(
+			player,
+			`📖 Nouvelle recette dans ta collection ! +{Gameplay.Discovery.BonusCoins} pièces 💰`,
+			"success"
+		)
+		publishPersonalSecrets(player)
+	end
+	if discovered[recipe.Id] then
 		return
 	end
 	discovered[recipe.Id] = true
 	local who = if player then player.DisplayName else "Quelqu'un"
 	NotifyService.All(`✨ {who} a découvert une RECETTE SECRÈTE : {recipe.Name} !`, "success")
-	if player then
-		PlayerService.AddCoins(player, Gameplay.Discovery.BonusCoins)
-		NotifyService.Send(player, `+{Gameplay.Discovery.BonusCoins} pièces de découverte 💰`, "success")
-	end
 	FxService.Confetti(WorldService.CauldronTop(), 180)
 	refreshGrimoire()
 	publish()
@@ -228,6 +254,21 @@ function ShopService:Start()
 	nextEventAt = workspace:GetServerTimeNow() + Event.FirstDelaySeconds
 	refreshGrimoire()
 	publish()
+	-- Les secrets connus des joueurs présents apparaissent dans le grimoire de la boutique.
+	DataService.OnLoaded(function(player: Player, data)
+		local changed = false
+		for recipeId in data.Secrets do
+			if Recipes.ById[recipeId] and not discovered[recipeId] then
+				discovered[recipeId] = true
+				changed = true
+			end
+		end
+		publishPersonalSecrets(player)
+		if changed then
+			refreshGrimoire()
+			publish()
+		end
+	end)
 	task.spawn(function()
 		while true do
 			task.wait(1)

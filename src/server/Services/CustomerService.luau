@@ -14,6 +14,7 @@ local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
 local ShopService = require(script.Parent.ShopService)
+local UpgradeService = require(script.Parent.UpgradeService)
 local WorldService = require(script.Parent.WorldService)
 
 local CustomerService = {}
@@ -266,7 +267,8 @@ local function spawnCustomer(spotIndex: number)
 			EffectService.Apply(model, given.Effect, nil, given.Color)
 			local effectName = EffectService.GetName(given.Effect)
 			if given.Id == recipe.Id then
-				local tip = math.floor(recipe.Value * Config.TipMax * remaining / patience)
+				local tipRate = Config.TipMax * (1 + UpgradeService.TipBonus(player))
+				local tip = math.floor(recipe.Value * tipRate * remaining / patience)
 				local multiplier = payMultiplier * ShopService.ComboMultiplier() * ShopService.EventMultiplier()
 				local total = math.floor((recipe.Value + tip) * multiplier)
 				PlayerService.AddCoins(player, total)
