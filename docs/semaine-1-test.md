@@ -48,6 +48,15 @@
 - [ ] Défi réussi : « 🎯 Défi réussi ! +X 💰 », confettis sur toi, ✅ puis un nouveau défi 2 s après.
 - [ ] Défis à vérifier : explosion (mélange raté), boire 2 potions, série de 5, servir une recette précise.
 
+## Nouveautés v6 à tester
+- [ ] **Lancer** : avec une potion en main, approche un autre joueur → invite « Asperger 💦 » (R) → la fiole vole, il se transforme.
+      (Test à 2 : Studio → onglet Test → Clients et serveurs → 2 joueurs → Démarrer.)
+- [ ] Bouton du panneau « 💦 Bataille de potions / 🛡️ Protégé » : protégé = personne ne peut t'asperger.
+- [ ] **Cadeau du jour** ~3 s après l'arrivée : « 🎁 Cadeau du jour (série : 1 j) : +50 ».
+- [ ] Panneau : « 📅 Défi du jour : sers 25 potions » qui avance à chaque service.
+- [ ] **🛒 Boutique** (bouton à droite) : fenêtre avec passes et bonus marqués « Bientôt » (normal tant que les Id valent 0).
+- [ ] **Stand Déco** (à droite de la porte) : acheter une décoration l'affiche pour tout le serveur + annonce.
+
 ## Limites connues (normal à ce stade)
 - Sauvegarde réelle seulement une fois le jeu publié + accès API activé (voir README).
 - Décor en blocs simples, sans son.
@@ -59,6 +68,7 @@
 
 ## Historique
 - v1 : premier prototype.
+- v6 : lancer de potions + protection, cadeau quotidien + défi du jour, game passes/produits + magasin, décorations.
 - v5 : défis personnels (3 actifs, renouvelés, récompenses en pièces).
 - v4 : sauvegarde (ProfileStore), Armoire du sorcier (5 améliorations), titres, collection de secrets personnelle.
 - v3 : Grand Chaudron + Fête des potions, recettes secrètes, niveau de boutique et déblocages,

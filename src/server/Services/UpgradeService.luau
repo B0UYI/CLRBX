@@ -9,6 +9,7 @@ local Upgrades = require(Shared.Config.Upgrades)
 local Gameplay = require(Shared.Config.Gameplay)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local DataService = require(script.Parent.DataService)
+local DecorService = require(script.Parent.DecorService)
 local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
 local PlayerService = require(script.Parent.PlayerService)
@@ -134,17 +135,105 @@ local function onBuy(player: Player, upgrade: Upgrades.Upgrade, pedestal: BasePa
 	UpgradeService.Refresh(player)
 	FxService.Confetti(pedestal.Position + Vector3.new(0, 4, 0), 120)
 	FxService.Sound(pedestal, "Cash")
-	NotifyService.Send(player, `✨ {upgrade.Name} acheté ! {upgrade.Description}`, "success")
+	if upgrade.Kind == "Decor" then
+		DecorService.Refresh()
+		NotifyService.All(`🎨 {player.DisplayName} a décoré la boutique : {upgrade.Name} !`, "success")
+	else
+		NotifyService.Send(player, `✨ {upgrade.Name} acheté ! {upgrade.Description}`, "success")
+	end
 end
 
-local function buildArmoire()
-	local shop = WorldService.Folder
-	assert(shop, "La boutique n'a pas été construite")
+local function sign(parent: BasePart, title: string, offset: Vector3)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(300, 50)
+	gui.StudsOffset = offset
+	gui.MaxDistance = 80
+	gui.Adornee = parent
+	gui.Parent = parent
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(70, 40, 100)
+	label.TextColor3 = Color3.fromRGB(255, 230, 140)
+	label.TextScaled = true
+	label.Font = Enum.Font.FredokaOne
+	label.Text = title
+	label.Parent = gui
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 10)
+	c.Parent = label
+end
+
+local function buildPedestal(folder: Instance, upgrade: Upgrades.Upgrade, position: Vector3)
+	local pedestal = Instance.new("Part")
+	pedestal.Name = `Presentoir_{upgrade.Id}`
+	pedestal.Anchored = true
+	pedestal.Size = Vector3.new(3, 3, 3)
+	pedestal.Position = position
+	pedestal.Color = Color3.fromRGB(90, 60, 120)
+	pedestal.Material = Enum.Material.Marble
+	pedestal.Parent = folder
+
+	local display = Instance.new("Part")
+	display.Name = "Objet"
+	display.Anchored = true
+	display.CanCollide = false
+	display.Shape = Enum.PartType.Ball
+	display.Size = Vector3.new(1.6, 1.6, 1.6)
+	display.Position = pedestal.Position + Vector3.new(0, 2.4, 0)
+	display.Color = upgrade.Color
+	display.Material = Enum.Material.Neon
+	display.Parent = pedestal
+
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(190, 64)
+	gui.StudsOffset = Vector3.new(0, 2.2, 0)
+	gui.MaxDistance = 40
+	gui.Adornee = display
+	gui.Parent = display
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+	label.BackgroundTransparency = 0.2
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.Font = Enum.Font.FredokaOne
+	label.Text = `{upgrade.Name}\n{upgrade.Description}\n{upgrade.Price} 💰`
+	label.Parent = gui
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 10)
+	c.Parent = label
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Acheter"
+	prompt.ObjectText = `{upgrade.Name} ({upgrade.Price} 💰)`
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0.4 -- évite les achats par erreur
+	prompt.MaxActivationDistance = Gameplay.Interaction.MaxDistance
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute("UpgradeId", upgrade.Id)
+	prompt.Parent = pedestal
+	prompt.Triggered:Connect(function(player: Player)
+		onBuy(player, upgrade, pedestal)
+	end)
+end
+
+local function itemsFor(station: string?): { Upgrades.Upgrade }
+	local items = {}
+	for _, upgrade in Upgrades.List do
+		if upgrade.Station == station then
+			table.insert(items, upgrade)
+		end
+	end
+	return items
+end
+
+-- Armoire du sorcier : colonne de présentoirs contre le mur gauche de l'entrée.
+local function buildArmoire(shop: Instance)
 	local folder = Instance.new("Folder")
 	folder.Name = "Armoire"
 	folder.Parent = shop
-
-	local lastZ = FIRST_Z + SPACING_Z * (#Upgrades.List - 1)
+	local items = itemsFor(nil)
+	local lastZ = FIRST_Z + SPACING_Z * (#items - 1)
 	local back = Instance.new("Part")
 	back.Name = "ArmoireFond"
 	back.Anchored = true
@@ -153,82 +242,44 @@ local function buildArmoire()
 	back.Color = Color3.fromRGB(70, 40, 100)
 	back.Material = Enum.Material.WoodPlanks
 	back.Parent = folder
-	local signGui = Instance.new("BillboardGui")
-	signGui.Size = UDim2.fromOffset(300, 50)
-	signGui.StudsOffset = Vector3.new(2, 6.5, 0)
-	signGui.MaxDistance = 80
-	signGui.Adornee = back
-	signGui.Parent = back
-	local sign = Instance.new("TextLabel")
-	sign.Size = UDim2.fromScale(1, 1)
-	sign.BackgroundColor3 = Color3.fromRGB(70, 40, 100)
-	sign.TextColor3 = Color3.fromRGB(255, 230, 140)
-	sign.TextScaled = true
-	sign.Font = Enum.Font.FredokaOne
-	sign.Text = "🧙 ARMOIRE DU SORCIER"
-	sign.Parent = signGui
-	local signCorner = Instance.new("UICorner")
-	signCorner.CornerRadius = UDim.new(0, 10)
-	signCorner.Parent = sign
-
-	for index, upgrade in Upgrades.List do
-		local z = FIRST_Z + SPACING_Z * (index - 1)
-		local pedestal = Instance.new("Part")
-		pedestal.Name = `Presentoir_{upgrade.Id}`
-		pedestal.Anchored = true
-		pedestal.Size = Vector3.new(3, 3, 3)
-		pedestal.Position = Vector3.new(ARMOIRE_X, FLOOR_TOP + 1.5, z)
-		pedestal.Color = Color3.fromRGB(90, 60, 120)
-		pedestal.Material = Enum.Material.Marble
-		pedestal.Parent = folder
-
-		local display = Instance.new("Part")
-		display.Name = "Objet"
-		display.Anchored = true
-		display.CanCollide = false
-		display.Shape = Enum.PartType.Ball
-		display.Size = Vector3.new(1.6, 1.6, 1.6)
-		display.Position = pedestal.Position + Vector3.new(0, 2.4, 0)
-		display.Color = upgrade.Color
-		display.Material = Enum.Material.Neon
-		display.Parent = pedestal
-
-		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(190, 64)
-		gui.StudsOffset = Vector3.new(0, 2.2, 0)
-		gui.MaxDistance = 40
-		gui.Adornee = display
-		gui.Parent = display
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
-		label.BackgroundTransparency = 0.2
-		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextScaled = true
-		label.Font = Enum.Font.FredokaOne
-		label.Text = `{upgrade.Name}\n{upgrade.Description}\n{upgrade.Price} 💰`
-		label.Parent = gui
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 10)
-		corner.Parent = label
-
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.ActionText = "Acheter"
-		prompt.ObjectText = `{upgrade.Name} ({upgrade.Price} 💰)`
-		prompt.KeyboardKeyCode = Enum.KeyCode.E
-		prompt.HoldDuration = 0.4 -- évite les achats par erreur
-		prompt.MaxActivationDistance = Gameplay.Interaction.MaxDistance
-		prompt.RequiresLineOfSight = false
-		prompt:SetAttribute("UpgradeId", upgrade.Id)
-		prompt.Parent = pedestal
-		prompt.Triggered:Connect(function(player: Player)
-			onBuy(player, upgrade, pedestal)
-		end)
+	sign(back, "🧙 ARMOIRE DU SORCIER", Vector3.new(2, 6.5, 0))
+	for index, upgrade in items do
+		buildPedestal(folder, upgrade, Vector3.new(ARMOIRE_X, FLOOR_TOP + 1.5, FIRST_Z + SPACING_Z * (index - 1)))
 	end
 end
 
+-- Stand Déco : rangée de présentoirs à droite de la porte d'entrée.
+local DECO_FIRST_X = 10.5
+local DECO_Z = -10.5
+
+local function buildDecoStand(shop: Instance)
+	local folder = Instance.new("Folder")
+	folder.Name = "StandDeco"
+	folder.Parent = shop
+	local items = itemsFor("Deco")
+	if #items == 0 then
+		return
+	end
+	for index, upgrade in items do
+		buildPedestal(folder, upgrade, Vector3.new(DECO_FIRST_X + SPACING_Z * (index - 1), FLOOR_TOP + 1.5, DECO_Z))
+	end
+	local anchor = Instance.new("Part")
+	anchor.Name = "EnseigneDeco"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Position = Vector3.new(DECO_FIRST_X + SPACING_Z * (#items - 1) / 2, FLOOR_TOP + 7, DECO_Z)
+	anchor.Parent = folder
+	sign(anchor, "🎨 DÉCORE LA BOUTIQUE", Vector3.new(0, 1, 0))
+end
+
 function UpgradeService:Start()
-	buildArmoire()
+	local shop = WorldService.Folder
+	assert(shop, "La boutique n'a pas été construite")
+	buildArmoire(shop)
+	buildDecoStand(shop)
 	DataService.OnLoaded(function(player: Player)
 		UpgradeService.Refresh(player)
 	end)

@@ -10,7 +10,7 @@ local ProfileStore = require(script.Parent.Parent.Packages.ProfileStore) :: any
 
 export type PlayerData = {
 	Coins: number,
-	-- [upgradeId] = true
+	-- Articles achetés en pièces (améliorations, titres, décorations) : [upgradeId] = true
 	Upgrades: { [string]: boolean },
 	-- Recettes secrètes découvertes par CE joueur : [recipeId] = true
 	Secrets: { [string]: boolean },
@@ -20,8 +20,6 @@ export type PlayerData = {
 	Daily: { Day: number, Streak: number, Served: number, GoalClaimed: boolean },
 	-- Derniers achats Robux traités (anti double-attribution).
 	PurchaseIds: { string },
-	-- Décorations de boutique possédées : [decorId] = true
-	Decor: { [string]: boolean },
 }
 
 local TEMPLATE: PlayerData = {
@@ -32,7 +30,6 @@ local TEMPLATE: PlayerData = {
 	Settings = { NoSplash = false },
 	Daily = { Day = 0, Streak = 0, Served = 0, GoalClaimed = false },
 	PurchaseIds = {},
-	Decor = {},
 }
 
 local DataService = {}

@@ -1,5 +1,5 @@
 --!strict
--- Améliorations achetables avec les pièces dans l'Armoire du sorcier (sauvegardées).
+-- Articles achetables avec les pièces (sauvegardés) : Armoire du sorcier et stand Déco.
 
 export type Upgrade = {
 	Id: string,
@@ -7,9 +7,12 @@ export type Upgrade = {
 	Description: string,
 	Price: number,
 	-- "Basket" (taille du panier), "WalkSpeed", "TipBonus" (+x % de pourboire), "Title" (titre au-dessus de la tête)
+	-- "Basket", "WalkSpeed", "TipBonus", "Title", "Decor" (Value = id de décoration, voir DecorService)
 	Kind: string,
 	Value: any,
 	Color: Color3,
+	-- Stand où l'article est vendu : nil = Armoire du sorcier, "Deco" = stand de décoration.
+	Station: string?,
 }
 
 local Upgrades: { Upgrade } = {
@@ -57,6 +60,48 @@ local Upgrades: { Upgrade } = {
 		Kind = "Title",
 		Value = "🧙 Grand Sorcier",
 		Color = Color3.fromRGB(220, 120, 255),
+	},
+
+	-- Décorations : visibles par TOUT le serveur tant que leur propriétaire est présent.
+	{
+		Id = "decoLanternes",
+		Station = "Deco",
+		Name = "Lanternes magiques",
+		Description = "Des lanternes flottantes",
+		Price = 300,
+		Kind = "Decor",
+		Value = "lanternes",
+		Color = Color3.fromRGB(255, 200, 120),
+	},
+	{
+		Id = "decoTapis",
+		Station = "Deco",
+		Name = "Tapis royal",
+		Description = "Un tapis rouge pour les clients",
+		Price = 400,
+		Kind = "Decor",
+		Value = "tapis",
+		Color = Color3.fromRGB(200, 40, 60),
+	},
+	{
+		Id = "decoBannieres",
+		Station = "Deco",
+		Name = "Bannières dorées",
+		Description = "La classe au mur du fond",
+		Price = 600,
+		Kind = "Decor",
+		Value = "bannieres",
+		Color = Color3.fromRGB(255, 200, 60),
+	},
+	{
+		Id = "decoFontaine",
+		Station = "Deco",
+		Name = "Fontaine à potions",
+		Description = "Une fontaine arc-en-ciel",
+		Price = 900,
+		Kind = "Decor",
+		Value = "fontaine",
+		Color = Color3.fromRGB(90, 220, 255),
 	},
 }
 

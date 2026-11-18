@@ -48,3 +48,11 @@ Les données joueur (pièces, améliorations, recettes secrètes) sont gérées 
   `Roblox API services unavailable - data will not be saved` : le jeu marche, mais rien n'est gardé.
 - Pour tester la vraie sauvegarde : publier le jeu (Fichier → Publier sur Roblox), puis
   **Paramètres du jeu → Sécurité → Activer l'accès de Studio aux services API**.
+
+## Activer les achats Robux (après publication)
+
+1. Publier le jeu, puis sur le [Creator Hub](https://create.roblox.com/) : ton jeu → **Monétisation**.
+2. Créer les **Passes** (Pièces ×2, VIP, Chaudron express) et les **Produits de développeur**
+   (Potion farce, Sac / Coffre / Trésor de pièces) avec leur image et leur prix.
+3. Copier chaque identifiant dans `src/shared/Config/Monetization.luau` (champ `Id`), puis publier.
+   Tant qu'un `Id` vaut 0, l'article apparaît « Bientôt » dans la boutique.
