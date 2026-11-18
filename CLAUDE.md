@@ -22,4 +22,9 @@ Objectif : revenus. Langue de travail avec le propriétaire : **français**.
 
 ## Monétisation
 - Game passes (achat unique) + produits de développeur (répétables) + récompenses de connexion.
-- Pas de pay-to-win agressif ; respecter les règles Roblox (pas de loot box payante opaque, mentions des chances si tirage).
+- Pas de pay-to-win agressif ; respecter les règles Roblox.
+- Objet aléatoire payant : chances affichées avant achat (et mises à jour si boost actif) + vérifier `PolicyService:GetPolicyInfoForPlayerAsync` (`ArePaidRandomItemsRestricted`, `IsPaidItemTradingAllowed`) et bloquer selon le pays.
+- Avatars en R15 (éligibilité au taux DevEx majoré 18+ US).
+
+## Recherche
+- Rapport de phase 0 : `reports/Concepts de jeu Roblox rentables.md` (notes dans `research_notes/`).
