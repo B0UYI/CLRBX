@@ -6,6 +6,7 @@ Objectif : revenus. Langue de travail avec le propriétaire : **français**.
 ## Workflow
 - Code Luau dans `src/`, synchronisé dans Studio par Rojo (`default.project.json`). Ne jamais supposer qu'une modif faite seulement dans Studio existe dans le dépôt.
 - Outils fixés dans `rokit.toml`. Avant chaque commit : `stylua src` puis `selene src`.
+- Sans Studio sous la main : `python3 -I tools/check_roblox_api.py <globalTypes.None.d.luau> src` doit afficher 0 erreur (voir `tools/README.md`).
 - Quand une action revient au propriétaire (Studio manuel, compte Roblox, argent, publication), la lister clairement sous un titre « Tes tâches ».
 
 ## Architecture
