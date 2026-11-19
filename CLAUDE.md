@@ -1,6 +1,6 @@
 # CLRBX — conventions pour Claude
 
-Projet : jeu Roblox commercial « Obby Turbo » (nom provisoire) — genre « +1 Vitesse » : parcours d'obstacles, mondes, équipement multiplicateur (voir `docs/concept-obby-turbo.md`), développé par un développeur solo (le propriétaire) avec Claude comme développeur principal.
+Projet : jeu Roblox commercial « Obby Turbo » (nom provisoire) — genre « +1 Vitesse » en VOL : parcours aériens par biomes, endurance de vol, mondes, équipement multiplicateur (voir `docs/concept-obby-turbo.md`), développé par un développeur solo (le propriétaire) avec Claude comme développeur principal.
 Anciens concepts archivés : branches `archive/potion-panique-v8` et `archive/course-celeste-v1`.
 Reprendre des MÉCANIQUES de genre, jamais les noms, cartes, personnages ou visuels d'un jeu existant (propriété intellectuelle).
 Objectif : revenus. Langue de travail avec le propriétaire : **français**.
@@ -19,7 +19,7 @@ Objectif : revenus. Langue de travail avec le propriétaire : **français**.
 
 ## Sécurité (anti-triche)
 - Le serveur fait autorité sur la monnaie, l'inventaire, la progression et les achats.
-- Le déplacement est piloté par le client (vitesse = « MaxWalkSpeed » publié par le serveur × limiteur) ; la Vitesse ne rapporte que par le temps (gain/s) ; points de contrôle et arrivée sont détectés par le serveur (suivi de position, ordre obligatoire, téléportations ignorées).
+- Le déplacement/vol est piloté par le client (vitesses publiées par le serveur) mais l'ENDURANCE est gérée par le serveur (il coupe le vol à 0) ; la Vitesse ne rapporte que par le temps (gain/s) ; points de contrôle et arrivée sont détectés par le serveur (suivi de position, ordre obligatoire, téléportations ignorées).
 - Tout RemoteEvent/RemoteFunction valide types, bornes et cadence (rate limit) de ses arguments côté serveur.
 - Achats : `MarketplaceService.ProcessReceipt` idempotent, reçu enregistré avant d'accorder.
 - Données joueur : une seule source, `DataService` (ProfileStore copié dans `src/server/Packages/`, licence dans `third_party/`). Ne jamais modifier ce fichier tiers ; il est exclu de StyLua/Selene.

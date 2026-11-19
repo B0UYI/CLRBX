@@ -1,5 +1,5 @@
 --!strict
--- Guide des nouveaux joueurs en 4 étapes (courir → entrer dans un monde → arrivée → équipement).
+-- Guide des nouveaux joueurs en 4 étapes (voler → entrer dans un monde → étape 1 → pas).
 -- L'étape courante est publiée dans l'attribut joueur « GuideStep » (0 = guide terminé) ;
 -- le client affiche la consigne et un rayon lumineux vers la cible (GuideController).
 -- Chaque étape est envoyée à l'entonnoir d'accueil de Roblox Analytics.
@@ -12,15 +12,15 @@ local NotifyService = require(script.Parent.NotifyService)
 local OnboardingService = {}
 
 local STEPS = {
-	"Courir",
-	"Entrer dans la Prairie",
+	"S'envoler",
+	"Entrer dans le Ciel",
 	"Terminer l'étape 1",
-	"Acheter un équipement",
+	"Acheter +2 par pas",
 }
 
 -- Étape atteinte après chaque événement (STEPS + 1 = terminé).
 local NEXT_STEP: { [string]: number } = {
-	Ran = 2,
+	Flew = 2,
 	EnteredWorld = 3,
 	StageCleared = 4,
 	Bought = 5,

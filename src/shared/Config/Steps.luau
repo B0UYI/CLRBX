@@ -14,7 +14,7 @@ end
 
 -- Points nécessaires pour passer du niveau n au niveau n + 1.
 local LEVEL_BASE = 10
-local LEVEL_GROWTH = 1.18
+local LEVEL_GROWTH = 1.12
 
 local function xpForNextLevel(level: number): number
 	return LEVEL_BASE * LEVEL_GROWTH ^ (level - 1)

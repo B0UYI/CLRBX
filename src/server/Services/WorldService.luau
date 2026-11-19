@@ -1,16 +1,17 @@
 --!strict
--- Mondes : un parcours d'obstacles par monde (généré depuis Config/Worlds, toujours le même tracé),
--- portails dans le lobby, lave, vide et créatures, 10 étapes (barrière de vitesse requise à l'entrée,
--- victoires à la fin), puis on relance le parcours (pour battre son record).
--- Le serveur suit la position des joueurs pour détecter le passage des lignes (fiable même à très
--- grande vitesse), ignore les déplacements invraisemblables (téléportation), exige les étapes dans
--- l'ordre et la vitesse requise (barrière contournée = retour au début de l'étape).
+-- Mondes aériens : 10 étapes par monde, chacune = un VOL CONTINU d'une plateforme flottante à la
+-- suivante, à travers les obstacles du biome (ciel, ville, glacier, volcan, espace). Les étapes
+-- s'allongent (plus d'endurance nécessaire) et se resserrent. Victoires à chaque plateforme atteinte.
+-- Le serveur suit la position des joueurs pour détecter les plateformes atteintes (dans l'ordre),
+-- ignore les déplacements invraisemblables et renvoie au début de l'étape en cas de chute ou de
+-- contact mortel (glace, flamme active, astéroïde).
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Gameplay = require(Shared.Config.Gameplay)
+local Flight = require(Shared.Config.Flight)
 local Movement = require(Shared.Config.Movement)
 local Worlds = require(Shared.Config.Worlds)
 local Format = require(Shared.Util.Format)
@@ -18,6 +19,7 @@ local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local Remotes = require(script.Parent.Parent.Util.Remotes)
 local DailyService = require(script.Parent.DailyService)
 local DataService = require(script.Parent.DataService)
+local FlightService = require(script.Parent.FlightService)
 local FxService = require(script.Parent.FxService)
 local LobbyService = require(script.Parent.LobbyService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -26,33 +28,31 @@ local StatsService = require(script.Parent.StatsService)
 
 local WorldService = {}
 
--- Disposition : parcours parallèles orientés vers +X, loin du lobby, au-dessus du vide.
+-- Disposition : parcours parallèles orientés vers +X, loin du lobby, dans le ciel.
 local ORIGIN_X = 1200
-local WORLD_Y = 60
-local SPACING_Z = 120
-local COURSE_WIDTH = 40
-local HALF_WIDTH = COURSE_WIDTH / 2
-local FLOOR_THICKNESS = 2
-local START_LENGTH = 40
-local SPAWN_OFFSET = 20
-local STAGE_PAD_LENGTH = 14
-local CREATURE_SIZE = 5
-local FINISH_RUNOUT = 30
+local WORLD_Y = 200
+local SPACING_Z = 160
+local CORRIDOR_WIDTH = 70
+local HALF_WIDTH = CORRIDOR_WIDTH / 2
+local CORRIDOR_HEIGHT = 60
+local PAD_SIZE = 24
+local PAD_THICKNESS = 2
+local SPAWN_OFFSET = PAD_SIZE / 2
 local CHECK_INTERVAL = 0.1
-local VOID_DEPTH = 30
+local VOID_DEPTH = 80
 local RESPAWN_DEBOUNCE = 0.5
 local PORTAL_Z = -40
 local PORTAL_SPACING = 22
 local GOLD = Color3.fromRGB(255, 210, 60)
 local STAGE_COLOR = Color3.fromRGB(80, 255, 120)
-local GATE_COLOR = Color3.fromRGB(255, 70, 70)
+local FLAME_ON = Color3.fromRGB(255, 110, 20)
+local FLAME_OFF = Color3.fromRGB(90, 40, 30)
 
 type Built = {
 	Def: Worlds.World,
 	Index: number,
 	Start: Vector3,
-	-- Pour chaque étape k : X (depuis le départ) de la barrière d'entrée et de la ligne de fin.
-	GateX: { number },
+	-- Pour chaque étape k : X (depuis le départ) de la plateforme d'arrivée de l'étape.
 	EndX: { number },
 }
 
@@ -111,7 +111,7 @@ end
 
 -- Réapparition : au départ, ou juste après la ligne de fin de la dernière étape terminée.
 local function spawnPoint(world: Built, stagesDone: number): Vector3
-	local x = if stagesDone == 0 then SPAWN_OFFSET else world.EndX[stagesDone] + STAGE_PAD_LENGTH / 2
+	local x = if stagesDone == 0 then SPAWN_OFFSET else world.EndX[stagesDone] + PAD_SIZE / 2
 	return world.Start + Vector3.new(x, 4, 0)
 end
 
@@ -142,353 +142,310 @@ function WorldService.RespawnAtCheckpoint(player: Player)
 		return
 	end
 	lastRespawn[player] = now
+	FlightService.Land(player)
+	FlightService.Refill(player)
 	placeAt(player, spawnPoint(current.World, current.Checkpoint))
 end
 
-local function onHazardTouched(hit: BasePart)
-	local character = hit:FindFirstAncestorOfClass("Model")
-	local player = character and Players:GetPlayerFromCharacter(character)
-	if player and progress[player] then
-		WorldService.RespawnAtCheckpoint(player)
-	end
-end
+local flames: { { Part: BasePart, Phase: number, Period: number } } = {}
 
-local KINDS = { "floor", "islands", "gap", "lava", "wall", "hurdles", "beam", "boulder" }
-
-local function pickKind(random: Random, difficulty: number): string
-	local weights: { [string]: number } = {
-		floor = 3 - 2 * difficulty,
-		islands = 0.5 + 1.5 * difficulty,
-		gap = 1 + difficulty,
-		lava = 1 + difficulty,
-		wall = 1,
-		hurdles = 1,
-		beam = 0.5 + difficulty,
-		boulder = 1.5 * difficulty,
-	}
-	local total = 0
-	for _, kind in KINDS do
-		total += weights[kind]
-	end
-	local roll = random:NextNumber() * total
-	for _, kind in KINDS do
-		roll -= weights[kind]
-		if roll <= 0 then
-			return kind
+local function lethal(hazard: BasePart)
+	hazard:SetAttribute("Mortel", true)
+	hazard.Touched:Connect(function(hit: BasePart)
+		if hazard:GetAttribute("Active") == false then
+			return -- flamme éteinte : on peut passer
 		end
-	end
-	return "floor"
+		local character = hit:FindFirstAncestorOfClass("Model")
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if player and progress[player] then
+			WorldService.RespawnAtCheckpoint(player)
+		end
+	end)
 end
 
 local function buildWorld(index: number, def: Worlds.World, parent: Instance): Built
 	local model = Instance.new("Model")
 	model.Name = def.Id
-	-- Toujours envoyé aux joueurs : pas de sol « pas encore chargé » quand on court très vite.
+	-- Toujours envoyé aux joueurs : pas de décor « pas encore chargé » quand on vole vite.
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	local start = Vector3.new(ORIGIN_X, WORLD_Y, (index - 1) * SPACING_Z - (#Worlds.List - 1) * SPACING_Z / 2)
 	local random = Random.new(index * 7919)
 
-	local function floor(x: number, length: number, zOffset: number, width: number, name: string?): Part
-		return part(model, {
-			Name = name or "Sol",
-			Size = Vector3.new(length, FLOOR_THICKNESS, width),
-			Position = start + Vector3.new(x + length / 2, -FLOOR_THICKNESS / 2, zOffset),
+	local function at(x: number, y: number, z: number): Vector3
+		return start + Vector3.new(x, y, z)
+	end
+	local function pad(x: number, name: string): Part
+		local p = part(model, {
+			Name = name,
+			Size = Vector3.new(PAD_SIZE, PAD_THICKNESS, PAD_SIZE),
+			Position = at(x + PAD_SIZE / 2, -PAD_THICKNESS / 2, 0),
 			Color = def.FloorColor,
 			Material = def.FloorMaterial,
 		})
-	end
-	local function edges(x: number, length: number)
 		for _, side in { -1, 1 } do
 			part(model, {
 				Name = "Bordure",
-				Size = Vector3.new(length, 0.3, 0.4),
-				Position = start + Vector3.new(x + length / 2, 0.15, side * (HALF_WIDTH - 0.2)),
+				Size = Vector3.new(PAD_SIZE, 0.4, 0.6),
+				Position = at(x + PAD_SIZE / 2, 0.2, side * (PAD_SIZE / 2 - 0.3)),
 				Color = def.AccentColor,
 				Material = Enum.Material.Neon,
 				CanCollide = false,
 				CanQuery = false,
 			})
 		end
+		return p
 	end
-	local function lava(x: number, length: number)
-		local p = part(model, {
-			Name = "Lave",
-			Size = Vector3.new(length, FLOOR_THICKNESS, COURSE_WIDTH),
-			Position = start + Vector3.new(x + length / 2, -FLOOR_THICKNESS / 2 + 0.1, 0),
-			Color = def.LavaColor,
-			Material = Enum.Material.Neon,
-		})
-		p.Touched:Connect(onHazardTouched)
+	local function randomPoint(x0: number, length: number, margin: number): Vector3
+		return at(
+			x0 + random:NextNumber(margin, length - margin),
+			random:NextNumber(-CORRIDOR_HEIGHT / 2 + 5, CORRIDOR_HEIGHT / 2 - 5),
+			random:NextNumber(-HALF_WIDTH + 5, HALF_WIDTH - 5)
+		)
 	end
-	local function wallWithOpening(x: number)
-		local opening = 7
-		local openZ = random:NextNumber(-HALF_WIDTH + opening / 2 + 1, HALF_WIDTH - opening / 2 - 1)
-		local leftWidth = (openZ - opening / 2) + HALF_WIDTH
-		local rightWidth = HALF_WIDTH - (openZ + opening / 2)
-		for _, piece in { { leftWidth, -HALF_WIDTH + leftWidth / 2 }, { rightWidth, HALF_WIDTH - rightWidth / 2 } } do
-			if piece[1] > 0.5 then
+
+	-- Ciel : nuages (obstacles doux) et anneaux décoratifs.
+	local function ciel(x0: number, length: number, difficulty: number)
+		for _ = 1, math.floor(length / 40 * (1 + 2 * difficulty)) do
+			local size = random:NextNumber(10, 18)
+			part(model, {
+				Name = "Nuage",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(size, size, size),
+				Position = randomPoint(x0, length, 15),
+				Color = Color3.new(1, 1, 1),
+				Material = Enum.Material.SmoothPlastic,
+				Transparency = 0.1,
+			})
+		end
+		for rx = x0 + 40, x0 + length - 30, 60 do
+			for _, offset in
+				{ Vector3.new(0, 12, 0), Vector3.new(0, -12, 0), Vector3.new(0, 0, 12), Vector3.new(0, 0, -12) }
+			do
+				local horizontal = offset.Y == 0
 				part(model, {
-					Name = "Mur",
-					Size = Vector3.new(2, 10, piece[1]),
-					Position = start + Vector3.new(x, 5, piece[2]),
+					Name = "Anneau",
+					Size = if horizontal then Vector3.new(1, 24, 1) else Vector3.new(1, 1, 24),
+					Position = at(rx, 0, 0) + offset,
 					Color = def.AccentColor,
-					Material = Enum.Material.SmoothPlastic,
+					Material = Enum.Material.Neon,
+					CanCollide = false,
+					CanQuery = false,
 				})
 			end
 		end
 	end
-	local function hurdle(x: number)
-		part(model, {
-			Name = "Haie",
-			Size = Vector3.new(1.5, 3, COURSE_WIDTH),
-			Position = start + Vector3.new(x, 1.5, 0),
-			Color = def.AccentColor,
-			Material = Enum.Material.SmoothPlastic,
-		})
-	end
 
-	-- Îlots sur la lave : plateformes séparées par des bandes de lave.
-	local function islands(x: number, length: number, difficulty: number)
-		lava(x, length)
-		local count = math.max(2, math.floor(length / 14))
-		local slot = length / count
-		local size = math.max(5, slot * (0.8 - 0.35 * difficulty))
-		for i = 0, count - 1 do
-			local z = random:NextNumber(-HALF_WIDTH * 0.4, HALF_WIDTH * 0.4) * difficulty
-			part(model, {
-				Name = "Ilot",
-				Size = Vector3.new(size, FLOOR_THICKNESS + 0.4, math.max(8, COURSE_WIDTH * (0.7 - 0.4 * difficulty))),
-				Position = start + Vector3.new(x + slot * i + slot / 2, -FLOOR_THICKNESS / 2 + 0.3, z),
-				Color = def.FloorColor,
-				Material = def.FloorMaterial,
-			})
+	-- Ville : rangées de buildings avec une seule brèche, de plus en plus étroite.
+	local function ville(x0: number, length: number, difficulty: number)
+		local spacing = 50 - 15 * difficulty
+		local gap = math.max(10, 26 - 14 * difficulty)
+		for rx = x0 + 30, x0 + length - 25, spacing do
+			local gapZ = random:NextNumber(-HALF_WIDTH + gap, HALF_WIDTH - gap)
+			local z = -HALF_WIDTH - 10
+			while z < HALF_WIDTH + 10 do
+				local width = random:NextNumber(8, 16)
+				local center = z + width / 2
+				if math.abs(center - gapZ) > gap / 2 + width / 2 then
+					local top = random:NextNumber(20, 60)
+					local shade = random:NextNumber(0.35, 0.7)
+					part(model, {
+						Name = "Building",
+						Size = Vector3.new(12, 160 + top, width),
+						Position = at(rx, -80 + top / 2, center),
+						Color = Color3.new(shade, shade, shade + 0.05),
+						Material = Enum.Material.Concrete,
+					})
+				end
+				z += width + 1
+			end
 		end
 	end
 
-	-- Chemin étroit entre deux bandes de lave, avec un boulet qui roule vers les coureurs.
-	local function boulder(x: number, length: number)
-		local width = 14
-		floor(x, length, 0, width, "Chemin")
-		local side = (COURSE_WIDTH - width) / 2
-		for _, sign in { -1, 1 } do
-			local p = part(model, {
-				Name = "Lave",
-				Size = Vector3.new(length, FLOOR_THICKNESS, side),
-				Position = start
-					+ Vector3.new(x + length / 2, -FLOOR_THICKNESS / 2 - 0.5, sign * (width / 2 + side / 2)),
-				Color = def.LavaColor,
+	-- Glacier : murs de glace MORTELS percés d'une petite ouverture.
+	local function glace(x0: number, length: number, difficulty: number)
+		local spacing = 45 - 15 * difficulty
+		local hole = math.max(7, 18 - 11 * difficulty)
+		for rx = x0 + 30, x0 + length - 25, spacing do
+			local hy = random:NextNumber(-CORRIDOR_HEIGHT / 2 + hole, CORRIDOR_HEIGHT / 2 - hole)
+			local hz = random:NextNumber(-HALF_WIDTH + hole, HALF_WIDTH - hole)
+			local bottom = -CORRIDOR_HEIGHT / 2 - 20
+			local topEdge = CORRIDOR_HEIGHT / 2 + 20
+			local pieces = {
+				-- dessus, dessous (toute la largeur), gauche, droite (hauteur du trou)
+				{
+					Vector3.new(2, topEdge - (hy + hole / 2), CORRIDOR_WIDTH + 40),
+					Vector3.new(0, (topEdge + hy + hole / 2) / 2, 0),
+				},
+				{
+					Vector3.new(2, (hy - hole / 2) - bottom, CORRIDOR_WIDTH + 40),
+					Vector3.new(0, (bottom + hy - hole / 2) / 2, 0),
+				},
+				{
+					Vector3.new(2, hole, (hz - hole / 2) + HALF_WIDTH + 20),
+					Vector3.new(0, hy, (hz - hole / 2 - HALF_WIDTH - 20) / 2),
+				},
+				{
+					Vector3.new(2, hole, HALF_WIDTH + 20 - (hz + hole / 2)),
+					Vector3.new(0, hy, (hz + hole / 2 + HALF_WIDTH + 20) / 2),
+				},
+			}
+			for _, piece in pieces do
+				local wall = part(model, {
+					Name = "MurDeGlace",
+					Size = piece[1],
+					Position = at(rx, 0, 0) + piece[2],
+					Color = Color3.fromRGB(170, 220, 255),
+					Material = Enum.Material.Ice,
+					Transparency = 0.25,
+				})
+				lethal(wall)
+			end
+		end
+	end
+
+	-- Volcan : longue ligne droite ; des flammes s'allument en vague, par cycles (boost conseillé).
+	local function volcan(x0: number, length: number, difficulty: number)
+		local spacing = 22
+		local waveSpeed = 80 + 80 * difficulty
+		local period = 2.6 - 1.2 * difficulty
+		for fx = x0 + 25, x0 + length - 20, spacing do
+			local flame = part(model, {
+				Name = "Flamme",
+				Size = Vector3.new(4, CORRIDOR_HEIGHT + 20, CORRIDOR_WIDTH + 20),
+				Position = at(fx, 0, 0),
+				Color = FLAME_ON,
 				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Transparency = 0.25,
 			})
-			p.Touched:Connect(onHazardTouched)
+			lethal(flame)
+			table.insert(flames, { Part = flame, Phase = (fx - x0) / waveSpeed, Period = period })
 		end
-		local ball = part(model, {
-			Name = "Boulet",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(10, 10, 10),
-			Position = start + Vector3.new(x + length, 5, 0),
-			Color = Color3.fromRGB(95, 95, 115),
-			Material = Enum.Material.Slate,
-			CanCollide = false,
-		})
-		ball.Touched:Connect(onHazardTouched)
-		TweenService:Create(
-			ball,
-			TweenInfo.new(random:NextNumber(1.5, 2.5), Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1, false),
-			{ Position = start + Vector3.new(x, 5, 0) }
-		):Play()
+		for _ = 1, math.floor(length / 30) do
+			local size = random:NextNumber(8, 20)
+			part(model, {
+				Name = "Rocher",
+				Size = Vector3.new(size, size, size),
+				Position = at(
+					x0 + random:NextNumber(0, length),
+					random:NextNumber(-40, 40),
+					(if random:NextNumber() < 0.5 then -1 else 1) * (HALF_WIDTH + 15)
+				),
+				Color = Color3.fromRGB(70, 55, 50),
+				Material = Enum.Material.Basalt,
+			})
+		end
 	end
 
-	-- Créature qui patrouille en travers de la piste : la toucher renvoie au début de l'étape.
-	local function creature(x: number, speedFactor: number)
-		local body = part(model, {
-			Name = "Creature",
-			Size = Vector3.new(CREATURE_SIZE, CREATURE_SIZE, CREATURE_SIZE),
-			Color = def.AccentColor:Lerp(Color3.new(0, 0, 0), 0.35),
-			Material = Enum.Material.SmoothPlastic,
-		})
-		local fromZ = -HALF_WIDTH + CREATURE_SIZE
-		local toZ = HALF_WIDTH - CREATURE_SIZE
-		if random:NextNumber() < 0.5 then
-			fromZ, toZ = toZ, fromZ
+	-- Espace : astéroïdes MORTELS qui se déplacent.
+	local function espace(x0: number, length: number, difficulty: number)
+		for _ = 1, math.floor(length / 30 * (1 + difficulty)) do
+			local size = random:NextNumber(6, 14)
+			local rock = part(model, {
+				Name = "Asteroide",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(size, size, size),
+				Position = randomPoint(x0, length, 20),
+				Color = Color3.fromRGB(110, 95, 130),
+				Material = Enum.Material.Slate,
+				CanCollide = false,
+			})
+			lethal(rock)
+			local axis = if random:NextNumber() < 0.5 then Vector3.yAxis else Vector3.zAxis
+			TweenService:Create(
+				rock,
+				TweenInfo.new(
+					random:NextNumber(2, 4) / (1 + difficulty),
+					Enum.EasingStyle.Sine,
+					Enum.EasingDirection.InOut,
+					-1,
+					true
+				),
+				{ Position = rock.Position + axis * random:NextNumber(10, 25) }
+			):Play()
 		end
-		local from = start + Vector3.new(x, CREATURE_SIZE / 2, fromZ)
-		-- Face (yeux) tournée vers les coureurs qui arrivent par -X.
-		body.CFrame = CFrame.lookAt(from, from - Vector3.xAxis)
-		local face = Instance.new("SurfaceGui")
-		face.Face = Enum.NormalId.Front
-		face.Parent = body
-		local eyes = Instance.new("TextLabel")
-		eyes.Size = UDim2.fromScale(1, 1)
-		eyes.BackgroundTransparency = 1
-		eyes.TextScaled = true
-		eyes.Text = "👀"
-		eyes.Parent = face
-		body.Touched:Connect(onHazardTouched)
-		local duration = random:NextNumber(1.8, 3.2) / speedFactor
-		local goal = CFrame.lookAt(
-			start + Vector3.new(x, CREATURE_SIZE / 2, toZ),
-			start + Vector3.new(x - 1, CREATURE_SIZE / 2, toZ)
-		)
-		TweenService:Create(
-			body,
-			TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-			{ CFrame = goal }
-		):Play()
 	end
+
+	local builders: { [string]: (number, number, number) -> () } = {
+		ciel = ciel,
+		ville = ville,
+		glace = glace,
+		volcan = volcan,
+		espace = espace,
+	}
+	local buildBiome = builders[def.Biome] or ciel
 
 	-- Départ
-	local startFloor = floor(0, START_LENGTH, 0, COURSE_WIDTH, "Depart")
-	edges(0, START_LENGTH)
+	local startPad = pad(0, "Depart")
 	local total = 0
 	for stage = 1, Worlds.StageCount do
 		total += Worlds.StageWins(def, stage)
 	end
+	local atmosphere = if def.StaminaDrain > 1 then `\n⚠️ Atmosphère : endurance ×{def.StaminaDrain}` else ""
 	billboard(
-		startFloor,
-		`🌍 {def.Name}\n10 étapes · jusqu'à +{Format.Number(total)} 🏆`,
+		startPad,
+		`🌍 {def.Name}\n10 étapes · jusqu'à +{Format.Number(total)} 🏆{atmosphere}`,
 		def.AccentColor,
-		8,
-		200
+		10,
+		250
 	)
 
-	local gateX: { number } = {}
 	local endX: { number } = {}
-	local x = START_LENGTH
+	local x = PAD_SIZE
 	for stage = 1, Worlds.StageCount do
 		local difficulty = math.clamp(def.Difficulty + 0.3 * (stage - 1) / (Worlds.StageCount - 1), 0, 1)
-		local required = Worlds.RequiredSpeed(def, stage)
+		local length = Worlds.StageLength(def, stage)
+		local needed = Worlds.RecommendedStamina(def, stage)
 
-		-- Barrière d'entrée (vitesse requise) : bloquante côté joueur tant qu'il est trop lent.
-		table.insert(gateX, x + 1)
-		if required > 0 then
-			local gate = part(model, {
-				Name = `Barriere_{stage}`,
-				Size = Vector3.new(1, 14, COURSE_WIDTH),
-				Position = start + Vector3.new(x + 1, 7, 0),
-				Color = GATE_COLOR,
-				Material = Enum.Material.ForceField,
-				Transparency = 0.3,
-			})
-			gate:SetAttribute("RequiredSpeed", required)
-		end
 		local sign = part(model, {
 			Name = `Panneau_{stage}`,
 			Size = Vector3.new(1, 1, 1),
-			Position = start + Vector3.new(x + 1, 16, 0),
+			Position = at(x, 12, 0),
 			Transparency = 1,
 			CanCollide = false,
 			CanQuery = false,
 		})
-		local requirement = if required > 0
-			then `⚡ Vitesse requise : {Format.Number(required)}`
-			else "⚡ Aucune vitesse requise"
+		local level = Flight.LevelForStamina(needed)
+		local info =
+			`Étape {stage} · {length} m de vol\n🔋 Endurance conseillée : {needed} s\nNiveau conseillé : {level}`
+		billboard(sign, info, Color3.fromRGB(255, 240, 120), 0, 300)
+		buildBiome(x, length, difficulty)
+		x += length
+
+		local arrival = pad(x, `FinEtape_{stage}`)
 		billboard(
-			sign,
-			`Étape {stage}\n{requirement}\nNiveau conseillé : {math.max(1, stage * 2 + (def.Difficulty * 50) // 1)}`,
-			Color3.fromRGB(255, 240, 120),
-			0,
+			arrival,
+			`✅ Étape {stage}\n+{Format.Number(Worlds.StageWins(def, stage))} 🏆`,
+			STAGE_COLOR,
+			6,
 			250
 		)
-
-		-- Zone d'obstacles de l'étape.
-		local zoneEnd = x + def.StageLength
-		local first = true
-		while x < zoneEnd do
-			local length = math.min(random:NextInteger(18, 30), zoneEnd - x)
-			-- L'étape 1 du premier monde : terrain plat (seule la créature est à éviter).
-			local kind = if length < 14
-					or (first and stage == 1)
-					or difficulty < 0.05
-				then "floor"
-				else pickKind(random, difficulty)
-			first = false
-			if kind == "boulder" and (stage < 3 or length < 20) then
-				kind = "floor"
-			end
-			if kind == "boulder" then
-				boulder(x, length)
-			elseif kind == "islands" then
-				islands(x, length, difficulty)
-			elseif kind == "gap" then
-				local gap = math.min(length - 8, math.floor(5 + 9 * difficulty * random:NextNumber() + 0.5))
-				floor(x, length - gap, 0, COURSE_WIDTH)
-				edges(x, length - gap)
-			elseif kind == "lava" then
-				local third = length / 3
-				floor(x, third, 0, COURSE_WIDTH)
-				lava(x + third, third)
-				floor(x + 2 * third, third, 0, COURSE_WIDTH)
-				edges(x, length)
-			elseif kind == "wall" then
-				floor(x, length, 0, COURSE_WIDTH)
-				edges(x, length)
-				wallWithOpening(x + length / 2)
-			elseif kind == "hurdles" then
-				floor(x, length, 0, COURSE_WIDTH)
-				edges(x, length)
-				hurdle(x + length / 2)
-			elseif kind == "beam" then
-				local width = math.max(5, 12 - 7 * difficulty)
-				local z = random:NextNumber(-HALF_WIDTH + width / 2, HALF_WIDTH - width / 2)
-				floor(x, length, z, width, "Poutre")
-			else
-				floor(x, length, 0, COURSE_WIDTH)
-				edges(x, length)
-			end
-			x += length
-		end
-		-- Créatures : 1 à l'étape 1, puis de plus en plus nombreuses et rapides.
-		local creatures = 1 + (stage - 1) // 2
-		for i = 1, creatures do
-			creature(zoneEnd - def.StageLength + def.StageLength * i / (creatures + 1), 1 + 0.15 * (stage - 1))
-		end
-
-		-- Fin de l'étape : dalle de victoires (et réapparition de l'étape suivante).
-		local pad = floor(x, STAGE_PAD_LENGTH, 0, COURSE_WIDTH, `FinEtape_{stage}`)
-		edges(x, STAGE_PAD_LENGTH)
-		part(model, {
-			Name = "LigneEtape",
-			Size = Vector3.new(1, 0.2, COURSE_WIDTH),
-			Position = start + Vector3.new(x + 1, 0.1, 0),
-			Color = STAGE_COLOR,
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-			CanQuery = false,
-		})
-		billboard(pad, `✅ Étape {stage}\n+{Format.Number(Worlds.StageWins(def, stage))} 🏆`, STAGE_COLOR, 5, 200)
-		table.insert(endX, x + 1)
-		x += STAGE_PAD_LENGTH
+		table.insert(endX, x)
+		x += PAD_SIZE
 	end
 
-	-- Arche dorée au-dessus de la dernière ligne + mur invisible au bout.
-	local finishX = endX[#endX]
-	floor(x, FINISH_RUNOUT, 0, COURSE_WIDTH, "PlateformeArrivee")
+	-- Arche dorée au-dessus de la dernière plateforme.
+	local finishX = endX[#endX] + PAD_SIZE / 2
+	local arch = part(model, {
+		Name = "Arrivee",
+		Size = Vector3.new(2, 2, PAD_SIZE + 4),
+		Position = at(finishX, 16, 0),
+		Color = GOLD,
+		Material = Enum.Material.Neon,
+	})
 	for _, side in { -1, 1 } do
 		part(model, {
 			Name = "PilierArrivee",
 			Size = Vector3.new(2, 16, 2),
-			Position = start + Vector3.new(finishX, 8, side * (HALF_WIDTH + 1)),
+			Position = at(finishX, 8, side * (PAD_SIZE / 2 + 1)),
 			Color = GOLD,
 			Material = Enum.Material.Neon,
 		})
 	end
-	local arch = part(model, {
-		Name = "Arrivee",
-		Size = Vector3.new(2, 2, COURSE_WIDTH + 4),
-		Position = start + Vector3.new(finishX, 16, 0),
-		Color = GOLD,
-		Material = Enum.Material.Neon,
-	})
 	billboard(arch, "🏆 ARRIVÉE FINALE", GOLD, 4, 400)
-	part(model, {
-		Name = "MurDeFin",
-		Size = Vector3.new(2, 40, COURSE_WIDTH + 8),
-		Position = start + Vector3.new(x + FINISH_RUNOUT, 20, 0),
-		Transparency = 1,
-	})
 
 	model.Parent = parent
-	return { Def = def, Index = index, Start = start, GateX = gateX, EndX = endX }
+	return { Def = def, Index = index, Start = start, EndX = endX }
 end
 
 local function enterWorld(player: Player, world: Built)
@@ -552,6 +509,7 @@ local function clearStage(player: Player, current: Progress, stage: number)
 	local gained = StatsService.AddWins(player, Worlds.StageWins(def, stage), "Gameplay", `Etape_{def.Id}_{stage}`)
 	current.Checkpoint = stage
 	player:SetAttribute("Checkpoint", stage)
+	FlightService.Refill(player)
 	celebrate(player, 60)
 	NotifyService.Send(player, `✅ Étape {stage} : +{Format.Number(gained)} 🏆`, "success")
 	if data then
@@ -593,7 +551,7 @@ local function finishWorld(player: Player, current: Progress)
 	placeAt(player, spawnPoint(current.World, 0))
 end
 
--- Suivi des joueurs dans les mondes : vide, barrières de vitesse, fins d'étape.
+-- Suivi des joueurs dans les mondes : chute, plateformes d'arrivée d'étape.
 local function track()
 	for player, current in progress do
 		local root = rootOf(player)
@@ -607,24 +565,18 @@ local function track()
 			if position.Y < start.Y - VOID_DEPTH then
 				WorldService.RespawnAtCheckpoint(player)
 			else
-				local maxSpeed = player:GetAttribute("MaxWalkSpeed")
-				local speed = if type(maxSpeed) == "number" then maxSpeed else 16
+				local walk = player:GetAttribute("MaxWalkSpeed")
+				local fly = player:GetAttribute("FlySpeed")
+				local speed = math.max(
+					if type(walk) == "number" then walk else 16,
+					(if type(fly) == "number" then fly else 40) * Flight.BoostMultiplier
+				)
 				local allowed = (speed * CHECK_INTERVAL + 25) * Movement.TeleportTolerance
-				local inLane = math.abs(position.Z - start.Z) <= HALF_WIDTH + 6 and position.Y <= start.Y + 80
+				local inLane = math.abs(position.Z - start.Z) <= HALF_WIDTH + 20 and position.Y <= start.Y + 80
 				if inLane and (position - previous).Magnitude <= allowed then
 					local fromX = previous.X - start.X
 					local toX = position.X - start.X
 					local world = current.World
-					local nextStage = current.Checkpoint + 1
-					-- Barrière contournée sans la vitesse requise : retour au début de l'étape.
-					local gate = world.GateX[nextStage]
-					local data = DataService.Get(player)
-					if gate and fromX < gate and toX >= gate and data then
-						if data.Speed < Worlds.RequiredSpeed(world.Def, nextStage) then
-							WorldService.RespawnAtCheckpoint(player)
-							continue
-						end
-					end
 					while
 						current.Checkpoint < #world.EndX
 						and fromX < world.EndX[current.Checkpoint + 1]
@@ -755,6 +707,22 @@ function WorldService:Start()
 		while true do
 			task.wait(CHECK_INTERVAL)
 			track()
+		end
+	end)
+
+	-- Flammes du volcan : allumées la moitié du cycle, décalées le long de la piste (vague).
+	task.spawn(function()
+		while true do
+			task.wait(0.05)
+			local now = workspace:GetServerTimeNow()
+			for _, flame in flames do
+				local active = ((now - flame.Phase) % flame.Period) < flame.Period * 0.5
+				if flame.Part:GetAttribute("Active") ~= active then
+					flame.Part:SetAttribute("Active", active)
+					flame.Part.Color = if active then FLAME_ON else FLAME_OFF
+					flame.Part.Transparency = if active then 0.25 else 0.85
+				end
+			end
 		end
 	end)
 end

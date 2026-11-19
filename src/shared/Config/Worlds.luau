@@ -1,19 +1,26 @@
 --!strict
--- Mondes : 10 étapes chacun, débloqués par le TOTAL de victoires gagnées.
--- Étape k : vitesse requise = SpeedStart × SpeedGrowth^(k-2) (aucune pour l'étape 1),
--- victoires = StageWins × 1,4^(k-1), obstacles et créatures de plus en plus nombreux.
+-- Mondes aériens : 10 étapes chacun (vol continu d'une plateforme à la suivante),
+-- débloqués par le TOTAL de victoires gagnées.
+-- Étape k : longueur = StageLength × LengthGrowth^(k-1) (plus d'endurance nécessaire),
+-- victoires = StageWins × 1,4^(k-1), obstacles de plus en plus serrés.
 -- Les parcours sont générés par WorldService (déterministes : toujours le même tracé).
 
 export type World = {
 	Id: string,
 	Name: string,
+	-- Décor et obstacles du parcours aérien : "ciel", "ville", "glace", "volcan", "espace".
+	Biome: string,
 	RequiredWins: number,
-	-- Longueur d'une étape (studs), victoires de l'étape 1, vitesse requise à l'étape 2 et croissance.
+	-- Longueur de vol de l'étape 1 (studs) et croissance par étape (chaque étape demande plus d'endurance).
 	StageLength: number,
+	LengthGrowth: number,
+	-- Vitesse de vol de référence pour estimer l'endurance conseillée.
+	ReferenceFlySpeed: number,
+	-- Atmosphère : multiplicateur de consommation d'endurance dans ce monde.
+	StaminaDrain: number,
+	-- Victoires de l'étape 1.
 	StageWins: number,
-	SpeedStart: number,
-	SpeedGrowth: number,
-	-- Difficulté de l'étape 1 (0 = facile, 1 = très dur) ; elle monte de +0,3 jusqu'à l'étape 10.
+	-- Difficulté de l'étape 1 (0 à 1) ; elle monte de +0,3 jusqu'à l'étape 10.
 	Difficulty: number,
 	FloorColor: Color3,
 	FloorMaterial: Enum.Material,
@@ -27,12 +34,14 @@ export type World = {
 local List: { World } = {
 	{
 		Id = "prairie",
-		Name = "Prairie",
+		Name = "Ciel",
+		Biome = "ciel",
 		RequiredWins = 0,
-		StageLength = 60,
+		StageLength = 100,
+		LengthGrowth = 1.18,
+		ReferenceFlySpeed = 45,
+		StaminaDrain = 1,
 		StageWins = 1,
-		SpeedStart = 10,
-		SpeedGrowth = 1.8,
 		Difficulty = 0.0,
 		FloorColor = Color3.fromRGB(110, 200, 90),
 		FloorMaterial = Enum.Material.Grass,
@@ -43,12 +52,14 @@ local List: { World } = {
 	},
 	{
 		Id = "desert",
-		Name = "Désert",
+		Name = "Ville",
+		Biome = "ville",
 		RequiredWins = 100,
-		StageLength = 80,
+		StageLength = 200,
+		LengthGrowth = 1.13,
+		ReferenceFlySpeed = 70,
+		StaminaDrain = 3,
 		StageWins = 8,
-		SpeedStart = 1500,
-		SpeedGrowth = 1.6,
 		Difficulty = 0.3,
 		FloorColor = Color3.fromRGB(230, 200, 130),
 		FloorMaterial = Enum.Material.Sand,
@@ -59,12 +70,14 @@ local List: { World } = {
 	},
 	{
 		Id = "glace",
-		Name = "Royaume de glace",
+		Name = "Glacier",
+		Biome = "glace",
 		RequiredWins = 1000,
-		StageLength = 100,
+		StageLength = 300,
+		LengthGrowth = 1.11,
+		ReferenceFlySpeed = 100,
+		StaminaDrain = 6,
 		StageWins = 60,
-		SpeedStart = 80000,
-		SpeedGrowth = 1.5,
 		Difficulty = 0.45,
 		FloorColor = Color3.fromRGB(200, 230, 255),
 		FloorMaterial = Enum.Material.Ice,
@@ -76,11 +89,13 @@ local List: { World } = {
 	{
 		Id = "volcan",
 		Name = "Volcan",
+		Biome = "volcan",
 		RequiredWins = 8000,
-		StageLength = 120,
+		StageLength = 350,
+		LengthGrowth = 1.1,
+		ReferenceFlySpeed = 140,
+		StaminaDrain = 13,
 		StageWins = 400,
-		SpeedStart = 3000000,
-		SpeedGrowth = 1.5,
 		Difficulty = 0.55,
 		FloorColor = Color3.fromRGB(70, 60, 60),
 		FloorMaterial = Enum.Material.Basalt,
@@ -92,11 +107,13 @@ local List: { World } = {
 	{
 		Id = "espace",
 		Name = "Espace",
+		Biome = "espace",
 		RequiredWins = 50000,
-		StageLength = 140,
+		StageLength = 400,
+		LengthGrowth = 1.1,
+		ReferenceFlySpeed = 190,
+		StaminaDrain = 28,
 		StageWins = 2500,
-		SpeedStart = 100000000,
-		SpeedGrowth = 1.5,
 		Difficulty = 0.65,
 		FloorColor = Color3.fromRGB(60, 50, 110),
 		FloorMaterial = Enum.Material.Metal,
@@ -116,12 +133,13 @@ end
 local STAGE_COUNT = 10
 local STAGE_WINS_GROWTH = 1.4
 
--- Vitesse requise pour entrer dans l'étape (0 pour l'étape 1).
-local function requiredSpeed(world: World, stage: number): number
-	if stage <= 1 then
-		return 0
-	end
-	return math.floor(world.SpeedStart * world.SpeedGrowth ^ (stage - 2))
+local function stageLength(world: World, stage: number): number
+	return math.floor(world.StageLength * world.LengthGrowth ^ (stage - 1))
+end
+
+-- Endurance conseillée pour l'étape (atmosphère comprise), avec une marge de 30 % pour les détours.
+local function recommendedStamina(world: World, stage: number): number
+	return math.ceil(stageLength(world, stage) / world.ReferenceFlySpeed * 1.3 * world.StaminaDrain)
 end
 
 local function stageWins(world: World, stage: number): number
@@ -132,6 +150,7 @@ return {
 	List = List,
 	ById = byId,
 	StageCount = STAGE_COUNT,
-	RequiredSpeed = requiredSpeed,
+	StageLength = stageLength,
+	RecommendedStamina = recommendedStamina,
 	StageWins = stageWins,
 }

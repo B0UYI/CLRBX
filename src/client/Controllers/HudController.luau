@@ -11,6 +11,7 @@ local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
 local Config = Shared:WaitForChild("Config")
 local Worlds = require(Config:WaitForChild("Worlds"))
 local Evolutions = require(Config:WaitForChild("Evolutions"))
+local Flight = require(Config:WaitForChild("Flight"))
 
 local HudController = {}
 
@@ -99,14 +100,27 @@ function HudController:Start()
 	local bottom = Instance.new("Frame")
 	bottom.AnchorPoint = Vector2.new(0.5, 1)
 	bottom.Position = UDim2.new(0.5, 0, 1, -70)
-	bottom.Size = UDim2.fromOffset(520, 80)
+	bottom.Size = UDim2.fromOffset(520, 110)
 	bottom.BackgroundTransparency = 1
 	bottom.Parent = gui
-	local speedLabel = text(bottom, UDim2.new(0.5, 0, 0, 34), UDim2.new(0.25, 0, 0, 0))
-	local speedMult = text(bottom, UDim2.new(0.25, 0, 0, 24), UDim2.new(0, 0, 0, 10), Color3.fromRGB(120, 200, 255))
-	local winsMult = text(bottom, UDim2.new(0.25, 0, 0, 24), UDim2.new(0.75, 0, 0, 10), Color3.fromRGB(255, 200, 60))
+	-- Endurance (au-dessus de la Vitesse).
+	local staminaBack = Instance.new("Frame")
+	staminaBack.Position = UDim2.new(0.15, 0, 0, 0)
+	staminaBack.Size = UDim2.new(0.7, 0, 0, 24)
+	staminaBack.BackgroundColor3 = Color3.fromRGB(30, 35, 55)
+	staminaBack.Parent = bottom
+	corner(staminaBack, 8)
+	local staminaFill = Instance.new("Frame")
+	staminaFill.Size = UDim2.fromScale(1, 1)
+	staminaFill.BackgroundColor3 = Color3.fromRGB(90, 230, 120)
+	staminaFill.Parent = staminaBack
+	corner(staminaFill, 8)
+	local staminaLabel = text(staminaBack, UDim2.fromScale(1, 1), UDim2.new())
+	local speedLabel = text(bottom, UDim2.new(0.5, 0, 0, 34), UDim2.new(0.25, 0, 0, 30))
+	local speedMult = text(bottom, UDim2.new(0.25, 0, 0, 24), UDim2.new(0, 0, 0, 40), Color3.fromRGB(120, 200, 255))
+	local winsMult = text(bottom, UDim2.new(0.25, 0, 0, 24), UDim2.new(0.75, 0, 0, 40), Color3.fromRGB(255, 200, 60))
 	local barBack = Instance.new("Frame")
-	barBack.Position = UDim2.new(0, 0, 0, 38)
+	barBack.Position = UDim2.new(0, 0, 0, 68)
 	barBack.Size = UDim2.new(1, 0, 0, 40)
 	barBack.BackgroundColor3 = Color3.fromRGB(30, 35, 55)
 	barBack.Parent = bottom
@@ -138,6 +152,15 @@ function HudController:Start()
 		speedLabel.Text = `Vitesse : {Format.Number(speed)}`
 		speedMult.Text = `×{multiplier} Vitesse`
 		winsMult.Text = `×{winsMultiplier} Victoires`
+		local staminaValue = number(player:GetAttribute("Stamina"), 0)
+		local staminaMax = math.max(number(player:GetAttribute("MaxStamina"), 1), 1)
+		local ratio = math.clamp(staminaValue / staminaMax, 0, 1)
+		staminaFill.Size = UDim2.fromScale(ratio, 1)
+		staminaFill.BackgroundColor3 = if ratio < 0.25
+			then Color3.fromRGB(240, 70, 70)
+			else Color3.fromRGB(90, 230, 120)
+		local staminaText = string.format("%.1f", staminaValue)
+		staminaLabel.Text = `🔋 Endurance {staminaText} / {math.floor(staminaMax)} s`
 		local level = number(player:GetAttribute("Level"), 1)
 		local xp = number(player:GetAttribute("LevelXp"), 0)
 		local need = math.max(number(player:GetAttribute("LevelNeed"), 1), 1)
@@ -161,9 +184,9 @@ function HudController:Start()
 		local perSecond = Format.Number(number(player:GetAttribute("SpeedPerSecond"), 0))
 		lines[2].Text = `👣 +{stepValue} par pas  (+{perSecond}/s)`
 		lines[3].Text = `🧬 Forme : {Evolutions.Forms[formIndex].Name}`
-		lines[4].Text = if limiter < 1
-			then `🏃 Course : {Format.Number(walk)} ({math.floor(limiter * 100)} %)`
-			else `🏃 Course : {Format.Number(walk)}`
+		local fly = math.floor(number(player:GetAttribute("FlySpeed"), 40))
+		local boost = math.floor(fly * Flight.BoostMultiplier)
+		lines[4].Text = `✈️ Vol : {fly} (🚀 {boost}) · 🏃 {Format.Number(walk)}`
 		lines[5].Text = if nextWorld
 			then `🔓 {nextWorld.Name} : {Format.Number(nextWorld.RequiredWins)} 🏆 au total`
 			else "🌟 Tous les mondes débloqués !"
@@ -187,8 +210,8 @@ function HudController:Start()
 					else Color3.fromRGB(40, 45, 70)
 			end
 			local nextStage = math.min(done + 1, Worlds.StageCount)
-			local required = Worlds.RequiredSpeed(world, nextStage)
-			local gate = if required > 0 then ` · ⚡ requise : {Format.Number(required)}` else ""
+			local needed = Worlds.RecommendedStamina(world, nextStage)
+			local gate = ` · 🔋 conseillée : {needed} s`
 			local reward = Format.Number(Worlds.StageWins(world, nextStage))
 			worldLabel.Text = `🌍 {world.Name} · Étape {nextStage} : +{reward} 🏆{gate}`
 		else

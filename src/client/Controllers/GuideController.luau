@@ -19,17 +19,16 @@ end
 -- Renvoie la cible et la consigne pour l'étape.
 local function guide(step: number, lobby: Instance, _root: BasePart): (BasePart?, string)
 	if step == 1 then
-		return nil, "1/4 · Cours ! Chaque seconde de course = +1 ⚡ Vitesse"
+		return nil, "1/4 · Envole-toi : touche F ou bouton ✈️, puis avance !"
 	elseif step == 2 then
 		local portals = lobby:FindFirstChild("Portails")
-		return partOf(portals and portals:FindFirstChild("Portail_prairie")),
-			"2/4 · Entre dans le portail Prairie 🌍"
+		return partOf(portals and portals:FindFirstChild("Portail_prairie")), "2/4 · Entre dans le portail Ciel 🌍"
 	elseif step == 3 then
 		local worldId = player:GetAttribute("World")
 		local worlds = workspace:FindFirstChild("Mondes")
 		local world = if worlds and type(worldId) == "string" then worlds:FindFirstChild(worldId) else nil
 		return partOf(world and world:FindFirstChild("FinEtape_1")),
-			"3/4 · Termine l'étape 1 : évite la créature 👀"
+			"3/4 · Vole jusqu'à la plateforme de l'étape 1 (surveille ton 🔋)"
 	end
 	local steps = lobby:FindFirstChild("Pas")
 	return partOf(steps and steps:FindFirstChild("Pas_2")), "4/4 · Achète +2 par pas (5 🏆) dans le lobby 👣"
