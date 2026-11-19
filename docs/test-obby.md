@@ -40,6 +40,20 @@
 - [ ] Textes (étapes, achats, tapis, portails) : petits de loin, lisibles de près, ne bouchent plus l'écran.
 - [ ] Si l'inclinaison part du mauvais côté dans les virages, dis-le-moi (un signe à inverser).
 
+## v4 : terrain de vol, échelle, évolutions, capes
+- [ ] Lobby : au nord (derrière les portails), grande vallée de vol libre : montagnes, aiguilles, îles
+      flottantes, cascades, arches, arbre géant, sommet doré. La barre affiche « ♾️ Vol libre ».
+- [ ] Dans un monde, atteindre une plateforme ne recharge PLUS l'endurance d'un coup : elle remonte
+      en restant posé (~15 % par seconde). Tomber ramène au checkpoint sans recharge.
+- [ ] Progression plus lente : niveaux 2× plus chers, pas plus longs (6 studs), 5 pas/s max.
+- [ ] Mondes plus vastes : couloirs 120 × 100, plateformes 36, étapes ×1,5 (endurance par niveau ×1,5,
+      donc niveaux conseillés inchangés), mondes espacés de 1000 studs.
+- [ ] Évolutions : plus de contour rouge. Sprinteur filets de vent · Fusée réacteurs aux pieds ·
+      Éclair arcs électriques + orbes · Comète queue + halo · Météore roches en feu en orbite ·
+      Supernova ailes d'énergie · Légende cosmique grandes ailes, couronne, planètes. Explosion de lumière en évoluant.
+- [ ] Capes : col, fermoirs, 5 pans évasés avec doublure, bordures, emblème, pointes ; elles flottent
+      en courant et ondulent en vol (vu aussi par un 2e joueur). Mannequins du magasin mis à jour.
+
 ## À me renvoyer
 - Tout message **rouge ou orange** de la Sortie (copier-coller).
 - Ce qui ne marche pas, et ton ressenti : **vitesse de progression** (trop lente / trop rapide ?),

@@ -7,8 +7,9 @@ local FLY_BASE = 40
 local FLY_EXPONENT = 0.5
 local FLY_MAX = 400
 
-local STAMINA_BASE = 6
-local STAMINA_PER_LEVEL = 1
+-- ×1,5 comme l'échelle des parcours (Config/Worlds.Scale).
+local STAMINA_BASE = 9
+local STAMINA_PER_LEVEL = 1.5
 
 -- Vitesse de vol (studs/s) selon la stat Vitesse.
 local function flySpeedFor(speed: number): number
@@ -36,6 +37,11 @@ return {
 	Drain = 1,
 	BoostDrain = 3,
 	Regen = 4,
+	-- …ou au moins cette part de l'endurance max par seconde (les plateformes ne remplissent plus
+	-- d'un coup : on attend quelques secondes posé pour repartir plein).
+	RegenFraction = 0.15,
+	-- Terrain de vol du lobby : pas de consommation (vol libre pour s'amuser).
+	PlaygroundDrain = 0,
 	-- Endurance minimale pour décoller.
 	MinToTakeOff = 1,
 	Responsiveness = 5,

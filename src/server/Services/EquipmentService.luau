@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Equipment = require(Shared.Config.Equipment)
 local Gameplay = require(Shared.Config.Gameplay)
+local CapeModel = require(Shared.Util.CapeModel)
 local Format = require(Shared.Util.Format)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local DataService = require(script.Parent.DataService)
@@ -22,7 +23,6 @@ local FIRST_X = -30
 local SPACING_X = 8
 local ROW_Z: { [string]: number } = { Trail = 4, Cape = 18, Aura = 32 }
 local PLAZA_TOP = 0.4
-local CAPE_SIZE = Vector3.new(2.2, 3.2, 0.12)
 -- Attribut posé sur tout ce que l'équipement ajoute au personnage (pour le retirer proprement).
 local WORN = "EquipementPorte"
 
@@ -44,40 +44,6 @@ end
 local function worn<T>(instance: T & Instance): T
 	instance:SetAttribute(WORN, true)
 	return instance
-end
-
-local function makeCape(item: Equipment.Item): Part
-	local cape = Instance.new("Part")
-	cape.Name = "Cape"
-	cape.Size = CAPE_SIZE
-	cape.Color = item.Color
-	cape.Material = if item.Sparkles then Enum.Material.Neon else Enum.Material.Fabric
-	cape.CanCollide = false
-	cape.CanQuery = false
-	cape.CanTouch = false
-	cape.Massless = true
-	cape.TopSurface = Enum.SurfaceType.Smooth
-	cape.BottomSurface = Enum.SurfaceType.Smooth
-	if item.Sparkles then
-		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = item.Color
-		sparkles.Parent = cape
-	end
-	return cape
-end
-
-local function attachCape(character: Model, item: Equipment.Item)
-	local torso = character:FindFirstChild("UpperTorso")
-	if not torso or not torso:IsA("BasePart") then
-		return
-	end
-	local cape = worn(makeCape(item))
-	cape.CFrame = torso.CFrame * CFrame.new(0, -0.95, 0.62) * CFrame.Angles(math.rad(8), 0, 0)
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = torso
-	weld.Part1 = cape
-	weld.Parent = cape
-	cape.Parent = character
 end
 
 local function attachTrail(root: BasePart, item: Equipment.Item)
@@ -132,12 +98,13 @@ local function dress(player: Player, character: Model)
 	if not root or not root:IsA("BasePart") then
 		return
 	end
+	-- La cape est construite et animée côté joueurs (CapeController) d'après cet attribut.
+	local cape = StatsService.BestInSlot(player, "Cape")
+	player:SetAttribute("Cape", if cape then cape.Id else nil)
 	for _, slot in Equipment.Slots do
 		local item = StatsService.BestInSlot(player, slot.Slot)
-		if item then
-			if slot.Slot == "Cape" then
-				attachCape(character, item)
-			elseif slot.Slot == "Trail" then
+		if item and slot.Slot ~= "Cape" then
+			if slot.Slot == "Trail" then
 				attachTrail(root, item)
 			else
 				attachAura(root, item)
@@ -222,12 +189,12 @@ local function display(pedestal: BasePart, item: Equipment.Item): BasePart
 		torso.Position = top + Vector3.new(0, 1.3, 0)
 		torso.Color = Color3.fromRGB(235, 235, 240)
 		torso.Parent = pedestal
-		local cape = makeCape(item)
-		cape.Name = "CapeExposee"
-		cape.Anchored = true
-		-- Montée côté joueurs (le mannequin est vu de dos).
-		cape.CFrame = CFrame.new(torso.Position + Vector3.new(0, -0.3, -0.6)) * CFrame.Angles(math.rad(-6), 0, 0)
-		cape.Parent = pedestal
+		local cape = CapeModel.Build(item)
+		cape.Model.Name = "CapeExposee"
+		cape.Model.Parent = pedestal
+		-- Montée côté joueurs (le mannequin est vu de dos), légèrement soulevée par le vent.
+		local anchor = CFrame.new(torso.Position + Vector3.new(0, 1.2, -0.55)) * CFrame.Angles(0, math.pi, 0)
+		CapeModel.Pose(cape, anchor, { 0.1, 0.08, 0.1, 0.12, 0.14 })
 		return torso
 	end
 	local shown = Instance.new("Part")

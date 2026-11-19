@@ -3,7 +3,12 @@
 -- îles flottantes, ville en contrebas, banquise, volcans, espace. Aussi le dessous des plateformes.
 -- Tout est fait de pièces simples (aucun modèle externe) et reste léger en nombre de pièces.
 
+local Worlds = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").Config.Worlds)
+
 local Biomes = {}
+
+-- Les décors s'écartent du couloir de vol (plus large) selon l'échelle des mondes.
+local SCALE = Worlds.Scale
 
 type Props = { [string]: any }
 
@@ -104,7 +109,7 @@ local function aside(
 		+ Vector3.new(
 			random:NextNumber(-60, length + 60),
 			random:NextNumber(yMin, yMax),
-			side * random:NextNumber(minSide, maxSide)
+			side * random:NextNumber(minSide, maxSide) * SCALE
 		)
 end
 
@@ -492,5 +497,9 @@ function Biomes.Rock(biome: string): (Color3, Enum.Material)
 	end
 	return Color3.fromRGB(130, 100, 70), Enum.Material.Slate
 end
+
+-- Arbre et nuage réutilisés ailleurs (terrain de vol du lobby).
+Biomes.Tree = tree
+Biomes.Cloud = cloud
 
 return Biomes

@@ -1,6 +1,9 @@
 --!strict
 -- Lobby (autour du point d'apparition) : grande place centrale.
+-- Au nord : le terrain de vol libre (Util/Playground).
 -- Les portails des mondes, les tapis et le magasin d'équipement sont ajoutés par leurs services.
+
+local Playground = require(script.Parent.Parent.Util.Playground)
 
 local LobbyService = {
 	Folder = nil :: Folder?,
@@ -35,6 +38,7 @@ function LobbyService:Init()
 		Material = Enum.Material.Concrete,
 	})
 
+	Playground.Build(folder)
 	folder.Parent = workspace
 end
 

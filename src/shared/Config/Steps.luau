@@ -13,7 +13,8 @@ for index, value in VALUES do
 end
 
 -- Points nécessaires pour passer du niveau n au niveau n + 1.
-local LEVEL_BASE = 10
+-- (Progression ralentie : 20 au lieu de 10, avec des pas plus longs et moins nombreux.)
+local LEVEL_BASE = 20
 local LEVEL_GROWTH = 1.12
 
 local function xpForNextLevel(level: number): number
@@ -34,7 +35,7 @@ end
 return {
 	Tiers = tiers,
 	-- Longueur d'un pas (studs) et pas comptés au maximum par seconde (évite l'emballement).
-	Stride = 4,
-	MaxStepsPerSecond = 8,
+	Stride = 6,
+	MaxStepsPerSecond = 5,
 	LevelFor = levelFor,
 }

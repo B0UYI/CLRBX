@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Flight = require(Shared.Config.Flight)
+local Gameplay = require(Shared.Config.Gameplay)
 local Worlds = require(Shared.Config.Worlds)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local Remotes = require(script.Parent.Parent.Util.Remotes)
@@ -28,10 +29,23 @@ local function maxStamina(player: Player): number
 	return if type(value) == "number" then value else Flight.MaxStaminaFor(1)
 end
 
-local function drainMultiplier(player: Player): number
+local PLAYGROUND = Gameplay.Lobby.Playground
+
+local function inPlayground(position: Vector3): boolean
+	local offset = position - PLAYGROUND.Center
+	return math.abs(offset.X) <= PLAYGROUND.Size.X / 2
+		and offset.Y >= -20
+		and offset.Y <= PLAYGROUND.Size.Y
+		and math.abs(offset.Z) <= PLAYGROUND.Size.Z / 2
+end
+
+local function drainMultiplier(player: Player, position: Vector3): number
 	local worldId = player:GetAttribute("World")
 	local world = if type(worldId) == "string" then Worlds.ById[worldId] else nil
-	return if world then world.StaminaDrain else 1
+	if world then
+		return world.StaminaDrain
+	end
+	return if inPlayground(position) then Flight.PlaygroundDrain else 1
 end
 
 local function setFlying(player: Player, value: boolean)
@@ -41,7 +55,7 @@ local function setFlying(player: Player, value: boolean)
 	end
 end
 
--- Remet l'endurance au maximum (réapparition, plateformes d'étape).
+-- Remet l'endurance au maximum (nouveau personnage, entrée dans un monde).
 function FlightService.Refill(player: Player)
 	stamina[player] = maxStamina(player)
 	player:SetAttribute("Stamina", stamina[player])
@@ -100,9 +114,13 @@ function FlightService:Start()
 				if humanoid and root and root:IsA("BasePart") then
 					local current = stamina[player] or maxStamina(player)
 					local limit = maxStamina(player)
+					local free = player:GetAttribute("World") == nil and inPlayground(root.Position)
+					if player:GetAttribute("FreeFlight") ~= free then
+						player:SetAttribute("FreeFlight", free)
+					end
 					if player:GetAttribute("Flying") == true then
 						local rate = if player:GetAttribute("Boosting") == true then Flight.BoostDrain else Flight.Drain
-						current -= rate * drainMultiplier(player) * TICK
+						current -= rate * drainMultiplier(player, root.Position) * TICK
 						if current <= 0 then
 							current = 0
 							setFlying(player, false)
@@ -115,7 +133,8 @@ function FlightService:Start()
 							OnboardingService.Advance(player, "Flew")
 						end
 					elseif humanoid.FloorMaterial ~= Enum.Material.Air then
-						current = math.min(limit, current + Flight.Regen * TICK)
+						local regen = math.max(Flight.Regen, limit * Flight.RegenFraction)
+						current = math.min(limit, current + regen * TICK)
 					end
 					stamina[player] = math.min(current, limit)
 					player:SetAttribute("Stamina", math.floor(stamina[player] * 10) / 10)

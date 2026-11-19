@@ -69,9 +69,9 @@ function EvolutionController:Start()
 	close.Position = UDim2.new(1, -8, 0, 8)
 	close.Size = UDim2.fromOffset(40, 36)
 
-	local before = label(window, UDim2.new(0.4, 0, 0, 70), UDim2.new(0.05, 0, 0, 60))
+	local before = label(window, UDim2.new(0.4, 0, 0, 80), UDim2.new(0.05, 0, 0, 56))
 	label(window, UDim2.new(0.1, 0, 0, 50), UDim2.new(0.45, 0, 0, 70)).Text = "➡️"
-	local after = label(window, UDim2.new(0.4, 0, 0, 70), UDim2.new(0.55, 0, 0, 60), Color3.fromRGB(255, 230, 90))
+	local after = label(window, UDim2.new(0.4, 0, 0, 80), UDim2.new(0.55, 0, 0, 56), Color3.fromRGB(255, 230, 90))
 	local levelNeed = label(window, UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 145))
 	local winsNeed = label(window, UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 180), Color3.fromRGB(255, 200, 60))
 	local evolve = button(window, "Évoluer", Color3.fromRGB(60, 170, 90))
@@ -82,13 +82,13 @@ function EvolutionController:Start()
 		local index = math.clamp(player:GetAttribute("Evolution") :: number? or 1, 1, #Evolutions.Forms)
 		local current = Evolutions.Forms[index]
 		local nextForm = Evolutions.Forms[index + 1]
-		before.Text = `{current.Name}\n×{current.Multiplier} Vitesse`
+		before.Text = `{current.Name}\n×{current.Multiplier} Vitesse\n{current.LookText}`
 		local level = player:GetAttribute("Level")
 		local wins = player:GetAttribute("Wins")
 		local myLevel = if type(level) == "number" then level else 1
 		local myWins = if type(wins) == "number" then wins else 0
 		if nextForm then
-			after.Text = `{nextForm.Name}\n×{nextForm.Multiplier} Vitesse`
+			after.Text = `{nextForm.Name}\n×{nextForm.Multiplier} Vitesse\n✨ {nextForm.LookText}`
 			levelNeed.Text = `Niveau {myLevel}/{nextForm.Level}`
 			winsNeed.Text = `{Format.Number(myWins)}/{Format.Number(nextForm.Wins)} victoires requises`
 			local ready = myLevel >= nextForm.Level and myWins >= nextForm.Wins

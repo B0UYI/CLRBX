@@ -133,10 +133,13 @@ for _, world in List do
 end
 
 local STAGE_COUNT = 10
+-- Échelle des parcours : longueurs ×1,5 (l'endurance par niveau est ×1,5 aussi dans Config/Flight,
+-- donc les niveaux conseillés restent les mêmes ; les espaces paraissent juste plus vastes).
+local SCALE = 1.5
 local STAGE_WINS_GROWTH = 1.4
 
 local function stageLength(world: World, stage: number): number
-	return math.floor(world.StageLength * world.LengthGrowth ^ (stage - 1))
+	return math.floor(world.StageLength * SCALE * world.LengthGrowth ^ (stage - 1))
 end
 
 -- Endurance conseillée pour l'étape (atmosphère comprise), avec une marge de 30 % pour les détours.
@@ -152,6 +155,7 @@ return {
 	List = List,
 	ById = byId,
 	StageCount = STAGE_COUNT,
+	Scale = SCALE,
 	StageLength = stageLength,
 	RecommendedStamina = recommendedStamina,
 	StageWins = stageWins,

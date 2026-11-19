@@ -160,7 +160,9 @@ function HudController:Start()
 			then Color3.fromRGB(240, 70, 70)
 			else Color3.fromRGB(90, 230, 120)
 		local staminaText = string.format("%.1f", staminaValue)
-		staminaLabel.Text = `🔋 Endurance {staminaText} / {math.floor(staminaMax)} s`
+		staminaLabel.Text = if player:GetAttribute("FreeFlight") == true
+			then "♾️ Vol libre : endurance illimitée"
+			else `🔋 Endurance {staminaText} / {math.floor(staminaMax)} s`
 		local level = number(player:GetAttribute("Level"), 1)
 		local xp = number(player:GetAttribute("LevelXp"), 0)
 		local need = math.max(number(player:GetAttribute("LevelNeed"), 1), 1)

@@ -1,7 +1,8 @@
 --!strict
 -- Évolution du personnage : niveau requis + victoires payées → forme suivante (meilleur multiplicateur).
 -- Le client demande via le RemoteEvent « Evolve » (sans argument) ; le serveur vérifie tout.
--- La forme se voit par une couleur (Highlight) et, dès « Éclair », des particules.
+-- Le look de chaque forme (ailes, halo, orbes…) est construit côté joueurs par FormFxController
+-- à partir de l'attribut « Evolution » publié par StatsService.
 
 local Players = game:GetService("Players")
 
@@ -19,42 +20,6 @@ local StatsService = require(script.Parent.StatsService)
 local EvolutionService = {}
 
 local evolveCooldown = Cooldown.new(1)
-
-local function dress(player: Player, character: Model)
-	for _, name in { "FormeEvolution", "FormeParticules" } do
-		local old = character:FindFirstChild(name, true)
-		if old then
-			old:Destroy()
-		end
-	end
-	local form = StatsService.Form(player)
-	if form.Index <= 1 then
-		return
-	end
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "FormeEvolution"
-	highlight.FillColor = form.Color
-	highlight.FillTransparency = 0.7
-	highlight.OutlineColor = form.Color
-	highlight.OutlineTransparency = 0.2
-	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-	highlight.Parent = character
-	if form.Particles then
-		local root = character:WaitForChild("HumanoidRootPart", 10)
-		if root then
-			local emitter = Instance.new("ParticleEmitter")
-			emitter.Name = "FormeParticules"
-			emitter.Color = ColorSequence.new(form.Color)
-			emitter.LightEmission = 1
-			emitter.Rate = 12 + form.Index * 3
-			emitter.Lifetime = NumberRange.new(0.6, 1)
-			emitter.Speed = NumberRange.new(2, 4)
-			emitter.SpreadAngle = Vector2.new(180, 180)
-			emitter.Size = NumberSequence.new(0.35, 0)
-			emitter.Parent = root
-		end
-	end
-end
 
 local function evolve(player: Player)
 	if not evolveCooldown:try(player) then
@@ -80,9 +45,6 @@ local function evolve(player: Player)
 	end
 	data.Evolution = nextForm.Index
 	StatsService.Sync(player)
-	if player.Character then
-		task.spawn(dress, player, player.Character)
-	end
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root and root:IsA("BasePart") then
@@ -97,20 +59,6 @@ function EvolutionService:Init()
 end
 
 function EvolutionService:Start()
-	DataService.OnLoaded(function(player: Player)
-		if player.Character then
-			task.spawn(dress, player, player.Character)
-		end
-	end)
-	local function watch(player: Player)
-		player.CharacterAdded:Connect(function(character)
-			dress(player, character)
-		end)
-	end
-	Players.PlayerAdded:Connect(watch)
-	for _, player in Players:GetPlayers() do
-		watch(player)
-	end
 	Players.PlayerRemoving:Connect(function(player)
 		evolveCooldown:forget(player)
 	end)

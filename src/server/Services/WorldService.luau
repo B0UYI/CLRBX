@@ -32,11 +32,14 @@ local WorldService = {}
 -- Disposition : parcours parallèles orientés vers +X, loin du lobby, dans le ciel.
 local ORIGIN_X = 1200
 local WORLD_Y = 200
-local SPACING_Z = 160
-local CORRIDOR_WIDTH = 70
+-- Mondes bien séparés : chaque décor (mer, sol, banquise…) a sa propre place.
+local SPACING_Z = 1000
+-- Échelle des obstacles et des espaces (Config/Worlds.Scale) : tout est plus vaste.
+local SCALE = Worlds.Scale
+local CORRIDOR_WIDTH = 120
 local HALF_WIDTH = CORRIDOR_WIDTH / 2
-local CORRIDOR_HEIGHT = 60
-local PAD_SIZE = 24
+local CORRIDOR_HEIGHT = 100
+local PAD_SIZE = 36
 local PAD_THICKNESS = 2
 local SPAWN_OFFSET = PAD_SIZE / 2
 local CHECK_INTERVAL = 0.1
@@ -143,8 +146,8 @@ function WorldService.RespawnAtCheckpoint(player: Player)
 		return
 	end
 	lastRespawn[player] = now
+	-- Pas de recharge : l'endurance remonte seulement en restant posé sur la plateforme.
 	FlightService.Land(player)
-	FlightService.Refill(player)
 	placeAt(player, spawnPoint(current.World, current.Checkpoint))
 end
 
@@ -227,7 +230,7 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 	-- Ciel : nuages (obstacles doux) et anneaux décoratifs.
 	local function ciel(x0: number, length: number, difficulty: number)
 		for _ = 1, math.floor(length / 40 * (1 + 2 * difficulty)) do
-			local size = random:NextNumber(10, 18)
+			local size = random:NextNumber(10, 18) * SCALE
 			part(model, {
 				Name = "Nuage",
 				Shape = Enum.PartType.Ball,
@@ -247,27 +250,27 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 
 	-- Ville : rangées de buildings avec une seule brèche, de plus en plus étroite.
 	local function ville(x0: number, length: number, difficulty: number)
-		local spacing = 50 - 15 * difficulty
-		local gap = math.max(10, 26 - 14 * difficulty)
+		local spacing = (50 - 15 * difficulty) * SCALE
+		local gap = math.max(12, 30 - 16 * difficulty)
 		for rx = x0 + 30, x0 + length - 25, spacing do
 			local gapZ = random:NextNumber(-HALF_WIDTH + gap, HALF_WIDTH - gap)
 			local z = -HALF_WIDTH - 10
 			while z < HALF_WIDTH + 10 do
-				local width = random:NextNumber(8, 16)
+				local width = random:NextNumber(8, 16) * SCALE
 				local center = z + width / 2
 				if math.abs(center - gapZ) > gap / 2 + width / 2 then
-					local top = random:NextNumber(20, 60)
+					local top = random:NextNumber(30, 90)
 					local shade = random:NextNumber(0.35, 0.7)
 					part(model, {
 						Name = "Building",
-						Size = Vector3.new(12, 160 + top, width),
-						Position = at(rx, -80 + top / 2, center),
+						Size = Vector3.new(12 * SCALE, 240 + top, width),
+						Position = at(rx, -120 + top / 2, center),
 						Color = Color3.new(shade, shade, shade + 0.05),
 						Material = Enum.Material.Concrete,
 					})
 					part(model, {
 						Name = "Toit",
-						Size = Vector3.new(13, 1.5, width + 1),
+						Size = Vector3.new(12 * SCALE + 1, 1.5, width + 1),
 						Position = at(rx, top + 0.75, center),
 						Color = Color3.new(shade * 0.7, shade * 0.7, shade * 0.75),
 						Material = Enum.Material.Metal,
@@ -275,8 +278,8 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 					-- Colonne de fenêtres éclairées, face aux joueurs qui arrivent.
 					part(model, {
 						Name = "Fenetres",
-						Size = Vector3.new(0.4, 160 + top - 6, width * 0.6),
-						Position = at(rx - 6.1, -80 + top / 2, center),
+						Size = Vector3.new(0.4, 240 + top - 6, width * 0.6),
+						Position = at(rx - 6 * SCALE - 0.1, -120 + top / 2, center),
 						Color = Color3.fromRGB(255, 225, 150),
 						Material = Enum.Material.Neon,
 						Transparency = 0.35,
@@ -291,8 +294,8 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 
 	-- Glacier : murs de glace MORTELS percés d'une petite ouverture.
 	local function glace(x0: number, length: number, difficulty: number)
-		local spacing = 45 - 15 * difficulty
-		local hole = math.max(7, 18 - 11 * difficulty)
+		local spacing = (45 - 15 * difficulty) * SCALE
+		local hole = math.max(8, 20 - 12 * difficulty)
 		for rx = x0 + 30, x0 + length - 25, spacing do
 			local hy = random:NextNumber(-CORRIDOR_HEIGHT / 2 + hole, CORRIDOR_HEIGHT / 2 - hole)
 			local hz = random:NextNumber(-HALF_WIDTH + hole, HALF_WIDTH - hole)
@@ -351,8 +354,8 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 
 	-- Volcan : longue ligne droite ; des flammes s'allument en vague, par cycles (boost conseillé).
 	local function volcan(x0: number, length: number, difficulty: number)
-		local spacing = 22
-		local waveSpeed = 80 + 80 * difficulty
+		local spacing = 22 * SCALE
+		local waveSpeed = (80 + 80 * difficulty) * SCALE
 		local period = 2.6 - 1.2 * difficulty
 		for fx = x0 + 25, x0 + length - 20, spacing do
 			local flame = part(model, {
@@ -387,14 +390,14 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 			table.insert(flames, { Part = flame, Phase = (fx - x0) / waveSpeed, Period = period, Fire = fire })
 		end
 		for _ = 1, math.floor(length / 30) do
-			local size = random:NextNumber(8, 20)
+			local size = random:NextNumber(8, 20) * SCALE
 			part(model, {
 				Name = "Rocher",
 				Size = Vector3.new(size, size, size),
 				Position = at(
 					x0 + random:NextNumber(0, length),
-					random:NextNumber(-40, 40),
-					(if random:NextNumber() < 0.5 then -1 else 1) * (HALF_WIDTH + 15)
+					random:NextNumber(-60, 60),
+					(if random:NextNumber() < 0.5 then -1 else 1) * (HALF_WIDTH + 15 * SCALE)
 				),
 				Color = Color3.fromRGB(70, 55, 50),
 				Material = Enum.Material.Basalt,
@@ -405,7 +408,7 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 	-- Espace : astéroïdes MORTELS qui se déplacent.
 	local function espace(x0: number, length: number, difficulty: number)
 		for _ = 1, math.floor(length / 30 * (1 + difficulty)) do
-			local size = random:NextNumber(6, 14)
+			local size = random:NextNumber(6, 14) * SCALE
 			local rock = part(model, {
 				Name = "Asteroide",
 				Shape = Enum.PartType.Ball,
@@ -426,7 +429,7 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 					-1,
 					true
 				),
-				{ Position = rock.Position + axis * random:NextNumber(10, 25) }
+				{ Position = rock.Position + axis * random:NextNumber(10, 25) * SCALE }
 			):Play()
 		end
 	end
@@ -497,15 +500,15 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 	local arch = part(model, {
 		Name = "Arrivee",
 		Size = Vector3.new(2, 2, PAD_SIZE + 4),
-		Position = at(finishX, 16, 0),
+		Position = at(finishX, 24, 0),
 		Color = GOLD,
 		Material = Enum.Material.Neon,
 	})
 	for _, side in { -1, 1 } do
 		part(model, {
 			Name = "PilierArrivee",
-			Size = Vector3.new(2, 16, 2),
-			Position = at(finishX, 8, side * (PAD_SIZE / 2 + 1)),
+			Size = Vector3.new(2, 24, 2),
+			Position = at(finishX, 12, side * (PAD_SIZE / 2 + 1)),
 			Color = GOLD,
 			Material = Enum.Material.Neon,
 		})
@@ -525,6 +528,7 @@ local function enterWorld(player: Player, world: Built)
 	progress[player] = { World = world, Checkpoint = 0, LastPosition = position, RunStart = os.clock() }
 	player:SetAttribute("World", world.Def.Id)
 	player:SetAttribute("Checkpoint", 0)
+	FlightService.Refill(player)
 	placeAt(player, position)
 	NotifyService.Send(player, `🌍 {world.Def.Name} : chaque étape terminée rapporte des 🏆 !`, "info")
 	OnboardingService.Advance(player, "EnteredWorld")
@@ -578,9 +582,12 @@ local function clearStage(player: Player, current: Progress, stage: number)
 	local gained = StatsService.AddWins(player, Worlds.StageWins(def, stage), "Gameplay", `Etape_{def.Id}_{stage}`)
 	current.Checkpoint = stage
 	player:SetAttribute("Checkpoint", stage)
-	FlightService.Refill(player)
 	celebrate(player, 60)
-	NotifyService.Send(player, `✅ Étape {stage} : +{Format.Number(gained)} 🏆`, "success")
+	NotifyService.Send(
+		player,
+		`✅ Étape {stage} : +{Format.Number(gained)} 🏆 · reste posé pour recharger 🔋`,
+		"success"
+	)
 	if data then
 		for _, world in ordered do
 			local required = world.Def.RequiredWins

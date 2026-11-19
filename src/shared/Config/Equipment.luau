@@ -16,6 +16,11 @@ export type Item = {
 	Rainbow: boolean?,
 	-- Étincelles (capes).
 	Sparkles: boolean?,
+	-- Capes : bordure / fermoirs, doublure intérieure, matière, emblème ("losange" ou "etoile").
+	Trim: Color3?,
+	Lining: Color3?,
+	Material: Enum.Material?,
+	Emblem: string?,
 }
 
 local Slots: { { Slot: Slot, Name: string } } = {
@@ -66,7 +71,10 @@ local List: { Item } = {
 		Name = "Cape rouge",
 		Multiplier = 1.5,
 		Price = 40,
-		Color = Color3.fromRGB(220, 40, 40),
+		Color = Color3.fromRGB(200, 30, 40),
+		Trim = Color3.fromRGB(230, 180, 70),
+		Lining = Color3.fromRGB(90, 15, 25),
+		Emblem = "losange",
 	},
 	{
 		Id = "cape_bleue",
@@ -74,7 +82,10 @@ local List: { Item } = {
 		Name = "Cape bleue",
 		Multiplier = 2,
 		Price = 150,
-		Color = Color3.fromRGB(40, 110, 230),
+		Color = Color3.fromRGB(35, 90, 210),
+		Trim = Color3.fromRGB(215, 230, 255),
+		Lining = Color3.fromRGB(20, 30, 80),
+		Emblem = "etoile",
 	},
 	{
 		Id = "cape_or",
@@ -82,7 +93,11 @@ local List: { Item } = {
 		Name = "Cape d'or",
 		Multiplier = 3,
 		Price = 1500,
-		Color = Color3.fromRGB(255, 200, 50),
+		Color = Color3.fromRGB(240, 185, 50),
+		Trim = Color3.fromRGB(255, 250, 220),
+		Lining = Color3.fromRGB(130, 20, 40),
+		Material = Enum.Material.Foil,
+		Emblem = "losange",
 	},
 	{
 		Id = "cape_cosmique",
@@ -90,7 +105,10 @@ local List: { Item } = {
 		Name = "Cape cosmique",
 		Multiplier = 5,
 		Price = 15000,
-		Color = Color3.fromRGB(140, 60, 255),
+		Color = Color3.fromRGB(55, 25, 120),
+		Trim = Color3.fromRGB(110, 230, 255),
+		Lining = Color3.fromRGB(15, 10, 40),
+		Emblem = "etoile",
 		Sparkles = true,
 	},
 	-- Auras
