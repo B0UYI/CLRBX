@@ -30,7 +30,7 @@ local function buildGui()
 	local frame = Instance.new("Frame")
 	frame.Name = "Container"
 	frame.AnchorPoint = Vector2.new(0.5, 0)
-	frame.Position = UDim2.new(0.5, 0, 0, 12)
+	frame.Position = UDim2.new(0.5, 0, 0, 62) -- sous le bandeau de course
 	frame.Size = UDim2.new(0.9, 0, 0.5, 0)
 	frame.BackgroundTransparency = 1
 	frame.Parent = gui

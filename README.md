@@ -1,6 +1,8 @@
-# CLRBX
+# CLRBX — Course Céleste
 
-Jeu Roblox — code Luau géré avec [Rojo](https://rojo.space) et synchronisé dans Roblox Studio.
+Jeu Roblox de course en vol façon super-héros (concept : `docs/concept-course-celeste.md`, test : `docs/test-vol.md`).
+Code Luau géré avec [Rojo](https://rojo.space) et synchronisé dans Roblox Studio.
+L'ancien concept (Potion Panique) est archivé dans la branche `archive/potion-panique-v8`.
 
 ## Installation (Windows, une seule fois)
 
@@ -52,7 +54,7 @@ Les données joueur (pièces, améliorations, recettes secrètes) sont gérées 
 ## Activer les achats Robux (après publication)
 
 1. Publier le jeu, puis sur le [Creator Hub](https://create.roblox.com/) : ton jeu → **Monétisation**.
-2. Créer les **Passes** (Pièces ×2, VIP, Chaudron express) et les **Produits de développeur**
-   (Potion farce, Sac / Coffre / Trésor de pièces) avec leur image et leur prix.
+2. Créer les **Passes** (Vitesse ×2, Victoires ×2) et les **Produits de développeur**
+   (Turbo ×3, Sac de victoires, Coffre de victoires) avec leur image et leur prix.
 3. Copier chaque identifiant dans `src/shared/Config/Monetization.luau` (champ `Id`), puis publier.
    Tant qu'un `Id` vaut 0, l'article apparaît « Bientôt » dans la boutique.

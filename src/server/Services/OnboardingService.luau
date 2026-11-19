@@ -1,5 +1,5 @@
 --!strict
--- Guide des nouveaux joueurs en 5 étapes (prendre → verser → mélanger → remplir → servir).
+-- Guide des nouveaux joueurs en 5 étapes (tapis → vol → orbe → course → cape).
 -- L'étape courante est publiée dans l'attribut joueur « GuideStep » (0 = guide terminé) ;
 -- le client affiche la consigne et un rayon lumineux vers la cible (GuideController).
 -- Chaque étape est envoyée à l'entonnoir d'accueil de Roblox Analytics.
@@ -12,20 +12,20 @@ local NotifyService = require(script.Parent.NotifyService)
 local OnboardingService = {}
 
 local STEPS = {
-	"Prendre des ingrédients",
-	"Verser le panier",
-	"Mélanger",
-	"Remplir une fiole",
-	"Servir un client",
+	"Monter sur un tapis",
+	"S'envoler",
+	"Attraper une orbe",
+	"Faire une course",
+	"Acheter une cape",
 }
 
 -- Étape atteinte après chaque événement (STEPS + 1 = terminé).
 local NEXT_STEP: { [string]: number } = {
-	TookIngredient = 2,
-	Poured = 3,
-	Brewed = 4,
-	Collected = 5,
-	Served = 6,
+	Treadmill = 2,
+	Flew = 3,
+	Orb = 4,
+	Raced = 5,
+	Cape = 6,
 }
 
 local function finish(player: Player)
@@ -37,7 +37,7 @@ local function finish(player: Player)
 	Analytics.Funnel(player, #STEPS + 1, "Guide terminé")
 	NotifyService.Send(
 		player,
-		"🎓 Bravo, tu sais tout faire ! Vise le Grand Chaudron et les recettes secrètes ✨",
+		"🎓 Bravo, tu es prêt ! Gagne des courses, achète de meilleures capes et vise l'arrivée 🏁",
 		"success"
 	)
 	local character = player.Character
@@ -48,7 +48,7 @@ local function finish(player: Player)
 end
 
 -- À appeler quand le joueur fait une action du guide. Les étapes ne reculent jamais,
--- et sautent en avant si le joueur va plus vite (ex. il ramasse la potion d'un ami).
+-- et sautent en avant si le joueur va plus vite (ex. une course démarre avant la fin du guide).
 function OnboardingService.Advance(player: Player, event: string)
 	local target = NEXT_STEP[event]
 	local current = player:GetAttribute("GuideStep")

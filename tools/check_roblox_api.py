@@ -127,7 +127,7 @@ for dirpath, _, files in os.walk(root):
                 if sm.group(1) not in services and sm.group(1) not in classes:
                     report("E", path, n, f'GetService("{sm.group(1)}") : service inconnu')
             # Champs des types de données (Vector3.new, CFrame.Angles, ...)
-            for gm in re.finditer(r"\b([A-Z]\w+)\.(\w+)\b", code_nostr):
+            for gm in re.finditer(r"(?<![.:\w])([A-Z]\w+)\.(\w+)\b", code_nostr):
                 g, field = gm.groups()
                 if g in globals_tables and g != "Enum" and field not in globals_tables[g]:
                     report("E", path, n, f"{g}.{field} n'existe pas")

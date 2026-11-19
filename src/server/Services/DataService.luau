@@ -9,15 +9,19 @@ local Players = game:GetService("Players")
 local ProfileStore = require(script.Parent.Parent.Packages.ProfileStore) :: any
 
 export type PlayerData = {
-	Coins: number,
-	-- Articles achetés en pièces (améliorations, titres, décorations) : [upgradeId] = true
-	Upgrades: { [string]: boolean },
-	-- Recettes secrètes découvertes par CE joueur : [recipeId] = true
-	Secrets: { [string]: boolean },
-	Served: number,
-	Settings: { NoSplash: boolean },
-	-- Récompense de connexion et défi du jour (Day = numéro du jour UTC).
-	Daily: { Day: number, Streak: number, Served: number, GoalClaimed: boolean },
+	-- Stat de progression : plus elle est haute, plus on vole vite (lobby et course).
+	Speed: number,
+	-- Victoires disponibles (monnaie des capes) et total gagné depuis le début (débloque les tapis).
+	Wins: number,
+	TotalWins: number,
+	-- Capes possédées : [capeId] = true
+	Capes: { [string]: boolean },
+	Races: number,
+	BestDistance: number,
+	-- Fin du Turbo acheté (os.time()).
+	BoostUntil: number,
+	-- Cadeau de connexion et défi du jour (Day = numéro du jour UTC).
+	Daily: { Day: number, Streak: number, Races: number, GoalClaimed: boolean },
 	-- Derniers achats Robux traités (anti double-attribution).
 	PurchaseIds: { string },
 	-- Guide des nouveaux joueurs terminé.
@@ -25,19 +29,21 @@ export type PlayerData = {
 }
 
 local TEMPLATE: PlayerData = {
-	Coins = 0,
-	Upgrades = {},
-	Secrets = {},
-	Served = 0,
-	Settings = { NoSplash = false },
-	Daily = { Day = 0, Streak = 0, Served = 0, GoalClaimed = false },
+	Speed = 0,
+	Wins = 0,
+	TotalWins = 0,
+	Capes = {},
+	Races = 0,
+	BestDistance = 0,
+	BoostUntil = 0,
+	Daily = { Day = 0, Streak = 0, Races = 0, GoalClaimed = false },
 	PurchaseIds = {},
 	Onboarded = false,
 }
 
 local DataService = {}
 
-local store = ProfileStore.New("PlayerData_v1", TEMPLATE)
+local store = ProfileStore.New("CourseCeleste_v1", TEMPLATE)
 local profiles: { [Player]: any } = {}
 local loading: { [Player]: boolean } = {}
 local loadedCallbacks: { (Player, PlayerData) -> () } = {}

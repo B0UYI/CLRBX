@@ -2,6 +2,7 @@
 -- Effets visuels et sonores de célébration (confettis, sons).
 
 local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local FxService = {}
 
@@ -56,6 +57,37 @@ function FxService.Sound(parent: BasePart, name: string, volume: number?)
 	sound.Parent = parent
 	sound:Play()
 	Debris:AddItem(sound, 3)
+end
+
+-- Petit texte qui monte et s'efface (ex. « +20 ⚡ ») à une position.
+function FxService.Popup(position: Vector3, text: string, color: Color3?)
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Position = position
+	anchor.Parent = workspace
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(140, 40)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 120
+	gui.Adornee = anchor
+	gui.Parent = anchor
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = color or Color3.fromRGB(255, 230, 90)
+	label.TextStrokeTransparency = 0.3
+	label.TextScaled = true
+	label.Font = Enum.Font.FredokaOne
+	label.Text = text
+	label.Parent = gui
+	TweenService:Create(gui, TweenInfo.new(1), { StudsOffset = Vector3.new(0, 4, 0) }):Play()
+	TweenService:Create(label, TweenInfo.new(1), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	Debris:AddItem(anchor, 1.2)
 end
 
 return FxService

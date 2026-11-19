@@ -1,42 +1,14 @@
 --!strict
 -- Guide visuel des nouveaux joueurs : consigne en bas de l'écran + rayon lumineux
--- du personnage vers la prochaine cible (étagère, chaudron, client).
+-- du personnage vers la prochaine cible (tapis, orbe, tableau de course, cape).
 -- Tout est local à ce joueur ; l'étape vient de l'attribut « GuideStep » posé par le serveur.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
-local Ingredients = require(Config:WaitForChild("Ingredients"))
-local Recipes = require(Config:WaitForChild("Recipes"))
-
 local GuideController = {}
 
 local player = Players.LocalPlayer
-local DEFAULT_INGREDIENT = "racine"
-
-local function heldTool(): Tool?
-	for _, container in { player.Character, player:FindFirstChildOfClass("Backpack") } do
-		if container then
-			for _, child in container:GetChildren() do
-				if child:IsA("Tool") and child:GetAttribute("ItemKind") ~= nil then
-					return child
-				end
-			end
-		end
-	end
-	return nil
-end
-
-local function customers(shop: Instance): { Model }
-	local list = {}
-	for _, child in shop:GetChildren() do
-		if child:IsA("Model") and child:GetAttribute("OrderId") ~= nil then
-			table.insert(list, child)
-		end
-	end
-	return list
-end
 
 local function partOf(instance: Instance?): BasePart?
 	if instance and instance:IsA("BasePart") then
@@ -45,52 +17,51 @@ local function partOf(instance: Instance?): BasePart?
 	return nil
 end
 
--- Renvoie la cible et la consigne pour l'étape.
-local function guide(step: number, shop: Instance): (BasePart?, string)
-	local tool = heldTool()
-	if step == 1 then
-		local waiting = customers(shop)
-		local order = waiting[1] and waiting[1]:GetAttribute("OrderId")
-		local recipe = if type(order) == "string" then Recipes.ById[order] else nil
-		local basketText = if tool then tool:GetAttribute("Items") else nil
-		local basket = if type(basketText) == "string" and basketText ~= "" then string.split(basketText, ",") else {}
-		local needed: string? = DEFAULT_INGREDIENT
-		if recipe then
-			needed = nil
-			local remaining = table.clone(basket)
-			for _, id in recipe.Ingredients do
-				local index = table.find(remaining, id)
-				if index then
-					table.remove(remaining, index)
-				else
-					needed = id
-					break
+local function nearestOrb(lobby: Instance, from: Vector3): BasePart?
+	local orbs = lobby:FindFirstChild("Orbes")
+	local best: BasePart? = nil
+	local bestDistance = math.huge
+	if orbs then
+		for _, orb in orbs:GetChildren() do
+			if orb:IsA("BasePart") and orb:GetAttribute("Active") == true then
+				local distance = (orb.Position - from).Magnitude
+				if distance < bestDistance then
+					best = orb
+					bestDistance = distance
 				end
 			end
 		end
-		if not needed then
-			return partOf(shop:FindFirstChild("Chaudron")), "1/5 · Panier prêt ! Va au chaudron 🧪"
-		end
-		local name = Ingredients.ById[needed].ShortName
-		return partOf(shop:FindFirstChild(`Etagere_{needed}`)), `1/5 · Prends : {name} (touche E sur l'étagère)`
+	end
+	return best
+end
+
+local function raceCountdown(): string
+	local state = ReplicatedStorage:FindFirstChild("GameState")
+	local endsAt = state and state:GetAttribute("PhaseEndsAt")
+	if state and state:GetAttribute("RacePhase") == "Intermission" and type(endsAt) == "number" then
+		local seconds = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
+		return ` (dans {seconds} s)`
+	end
+	return ""
+end
+
+-- Renvoie la cible et la consigne pour l'étape.
+local function guide(step: number, lobby: Instance, root: BasePart): (BasePart?, string)
+	if step == 1 then
+		local treadmills = lobby:FindFirstChild("Tapis")
+		return partOf(treadmills and treadmills:FindFirstChild("Tapis_bois")),
+			"1/5 · Monte sur le tapis de bois : tu gagnes de la vitesse ⚡"
 	elseif step == 2 then
-		return partOf(shop:FindFirstChild("Chaudron")), "2/5 · Verse ton panier dans le chaudron (E)"
+		return nil, "2/5 · Envole-toi : touche F ou bouton ✈️, puis avance !"
 	elseif step == 3 then
-		return partOf(shop:FindFirstChild("Chaudron")), "3/5 · Mélange le chaudron (F)"
+		return nearestOrb(lobby, root.Position), "3/5 · Attrape une orbe bleue en volant"
 	elseif step == 4 then
-		return partOf(shop:FindFirstChild("Chaudron")), "4/5 · Potion prête : remplis une fiole (F)"
+		return partOf(lobby:FindFirstChild("TableauCourse")),
+			`4/5 · La course arrive{raceCountdown()} : tu y seras envoyé 🏁`
 	end
-	local potionId = if tool then tool:GetAttribute("ItemId") else nil
-	local waiting = customers(shop)
-	local chosen = waiting[1]
-	for _, customer in waiting do
-		if customer:GetAttribute("OrderId") == potionId then
-			chosen = customer
-			break
-		end
-	end
-	local root = chosen and chosen:FindFirstChild("HumanoidRootPart")
-	return partOf(root), "5/5 · Sers la potion au client qui la veut (E)"
+	local capes = lobby:FindFirstChild("Capes")
+	return partOf(capes and capes:FindFirstChild("Cape_rouge")),
+		"5/5 · Achète la Cape rouge (25 🏆) pour voler plus vite"
 end
 
 function GuideController:Start()
@@ -183,12 +154,12 @@ function GuideController:Start()
 
 	while true do
 		local step = player:GetAttribute("GuideStep")
-		local shop = workspace:FindFirstChild("PotionShop")
+		local lobby = workspace:FindFirstChild("Lobby")
 		local character = player.Character
 		local rootInstance = character and character:FindFirstChild("HumanoidRootPart")
 		local root = if rootInstance and rootInstance:IsA("BasePart") then rootInstance else nil
-		if type(step) == "number" and step > 0 and shop and root then
-			local target, text = guide(step, shop)
+		if type(step) == "number" and step > 0 and lobby and root then
+			local target, text = guide(step, lobby, root)
 			label.Text = text
 			label.Visible = true
 			if root ~= currentRoot or not (fromAttachment and fromAttachment:IsDescendantOf(workspace)) then

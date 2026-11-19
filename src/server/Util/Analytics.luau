@@ -6,7 +6,7 @@ local AnalyticsService = game:GetService("AnalyticsService")
 
 local Analytics = {}
 
-local CURRENCY = "Pieces"
+local CURRENCY = "Victoires"
 
 -- Étape de l'entonnoir d'accueil (1, 2, 3… dans l'ordre).
 function Analytics.Funnel(player: Player, step: number, stepName: string)
@@ -18,8 +18,8 @@ function Analytics.Funnel(player: Player, step: number, stepName: string)
 	end
 end
 
--- Mouvement de pièces. transactionType : "Gameplay", "Shop", "IAP", "TimedReward", "Onboarding"…
-function Analytics.Coins(player: Player, amount: number, balance: number, transactionType: string, sku: string?)
+-- Mouvement de victoires. transactionType : "Gameplay", "Shop", "IAP", "TimedReward", "Onboarding"…
+function Analytics.Wins(player: Player, amount: number, balance: number, transactionType: string, sku: string?)
 	if amount == 0 then
 		return
 	end

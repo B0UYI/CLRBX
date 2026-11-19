@@ -65,7 +65,7 @@ function StoreController:Start()
 	limit.MaxSize = Vector2.new(440, 520)
 	limit.Parent = window
 
-	text(window, "🛒 Boutique de Potion Panique", UDim2.new(1, -70, 0, 36), UDim2.fromOffset(14, 8))
+	text(window, "🛒 Boutique", UDim2.new(1, -70, 0, 36), UDim2.fromOffset(14, 8))
 	local close = Instance.new("TextButton")
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.new(1, -8, 0, 8)

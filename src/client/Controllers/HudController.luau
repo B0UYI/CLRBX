@@ -1,10 +1,14 @@
 --!strict
--- Panneau d'infos : niveau de la boutique (barre d'XP), série en cours,
--- Grand Chaudron (compte à rebours ou progression) et recettes secrètes trouvées.
--- Lit uniquement les attributs publiés par le serveur dans ReplicatedStorage.GameState.
+-- Interface : panneau (Vitesse +/s, Victoires, gains, vitesse de vol, défi du jour),
+-- bandeau de course en haut, et au centre le compte à rebours puis la distance en course.
+-- Lit uniquement des attributs publiés par le serveur.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
+local Race = require(Shared:WaitForChild("Config"):WaitForChild("Race"))
 
 local HudController = {}
 
@@ -22,24 +26,40 @@ local function makeLabel(parent: Instance, order: number, height: number): TextL
 end
 
 local function formatTime(seconds: number): string
-	local s = math.max(0, math.floor(seconds))
+	local s = math.max(0, math.ceil(seconds))
 	return string.format("%d:%02d", s // 60, s % 60)
 end
 
+local function number(value: unknown, default: number): number
+	return if type(value) == "number" then value else default
+end
+
+local function zonesReached(distance: number): number
+	local count = 0
+	for _, zone in Race.Zones do
+		if zone.Distance <= distance then
+			count += 1
+		end
+	end
+	return count
+end
+
 function HudController:Start()
+	local player = Players.LocalPlayer
 	local state = ReplicatedStorage:WaitForChild("GameState")
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Hud"
 	gui.ResetOnSpawn = false
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+	gui.Parent = player:WaitForChild("PlayerGui")
 
+	-- Panneau à gauche.
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(0, 0.5)
 	panel.Position = UDim2.new(0, 12, 0.45, 0)
-	panel.Size = UDim2.fromOffset(290, 0)
+	panel.Size = UDim2.fromOffset(280, 0)
 	panel.AutomaticSize = Enum.AutomaticSize.Y
-	panel.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
+	panel.BackgroundColor3 = Color3.fromRGB(20, 25, 45)
 	panel.BackgroundTransparency = 0.25
 	panel.Parent = gui
 	local corner = Instance.new("UICorner")
@@ -55,144 +75,118 @@ function HudController:Start()
 	layout.Padding = UDim.new(0, 4)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = panel
-	-- Plus petit sur téléphone.
 	local scale = Instance.new("UIScale")
 	scale.Parent = panel
 	local camera = workspace.CurrentCamera
 	if camera and camera.ViewportSize.X < 800 then
-		scale.Scale = 0.75
+		scale.Scale = 0.75 -- téléphone
 	end
 
-	local levelLabel = makeLabel(panel, 1, 24)
-	local barBack = Instance.new("Frame")
-	barBack.LayoutOrder = 2
-	barBack.Size = UDim2.new(1, 0, 0, 10)
-	barBack.BackgroundColor3 = Color3.fromRGB(60, 50, 80)
-	barBack.Parent = panel
-	local barFill = Instance.new("Frame")
-	barFill.Size = UDim2.fromScale(0, 1)
-	barFill.BackgroundColor3 = Color3.fromRGB(255, 210, 80)
-	barFill.Parent = barBack
-	for _, frame in { barBack, barFill } do
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(1, 0)
-		c.Parent = frame
-	end
-	local comboLabel = makeLabel(panel, 3, 24)
-	local eventLabel = makeLabel(panel, 4, 40)
-	local secretsLabel = makeLabel(panel, 5, 20)
-	local challengesTitle = makeLabel(panel, 6, 22)
-	challengesTitle.Text = "🎯 Défis"
-	challengesTitle.TextColor3 = Color3.fromRGB(140, 220, 255)
-	local challengeLabels = {}
-	for index = 1, 3 do
-		challengeLabels[index] = makeLabel(panel, 6 + index, 20)
-	end
-
-	local dailyLabel = makeLabel(panel, 20, 20)
-	local streakLabel = makeLabel(panel, 21, 20)
+	local speedLabel = makeLabel(panel, 1, 30)
+	speedLabel.TextColor3 = Color3.fromRGB(255, 230, 90)
+	local winsLabel = makeLabel(panel, 2, 26)
+	local gainLabel = makeLabel(panel, 3, 22)
+	gainLabel.TextColor3 = Color3.fromRGB(150, 220, 255)
+	local flyLabel = makeLabel(panel, 4, 20)
+	local dailyLabel = makeLabel(panel, 5, 20)
+	local streakLabel = makeLabel(panel, 6, 20)
 	streakLabel.TextColor3 = Color3.fromRGB(255, 200, 120)
 
-	-- Bouton de protection contre les aspersions.
-	local protectButton = Instance.new("TextButton")
-	protectButton.LayoutOrder = 50
-	protectButton.Size = UDim2.new(1, 0, 0, 30)
-	protectButton.BackgroundColor3 = Color3.fromRGB(60, 50, 90)
-	protectButton.TextColor3 = Color3.new(1, 1, 1)
-	protectButton.TextScaled = true
-	protectButton.Font = Enum.Font.FredokaOne
-	protectButton.Parent = panel
-	local protectCorner = Instance.new("UICorner")
-	protectCorner.CornerRadius = UDim.new(0, 8)
-	protectCorner.Parent = protectButton
-	local protectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SetSplashProtection") :: RemoteEvent
-	protectButton.Activated:Connect(function()
-		local protected = Players.LocalPlayer:GetAttribute("NoSplash") == true
-		protectRemote:FireServer(not protected)
-	end)
+	-- Bandeau de course en haut.
+	local pill = Instance.new("TextLabel")
+	pill.AnchorPoint = Vector2.new(0.5, 0)
+	pill.Position = UDim2.new(0.5, 0, 0, 10)
+	pill.Size = UDim2.new(0.6, 0, 0, 44)
+	pill.BackgroundColor3 = Color3.fromRGB(20, 25, 45)
+	pill.BackgroundTransparency = 0.15
+	pill.TextColor3 = Color3.fromRGB(255, 230, 90)
+	pill.TextScaled = true
+	pill.Font = Enum.Font.FredokaOne
+	pill.Parent = gui
+	local pillLimit = Instance.new("UISizeConstraint")
+	pillLimit.MaxSize = Vector2.new(460, 44)
+	pillLimit.Parent = pill
+	local pillCorner = Instance.new("UICorner")
+	pillCorner.CornerRadius = UDim.new(0, 12)
+	pillCorner.Parent = pill
 
-	local function attr(name: string, default: any): any
-		local value = state:GetAttribute(name)
-		return if value == nil then default else value
-	end
+	-- Grand texte au centre (compte à rebours, distance).
+	local big = Instance.new("TextLabel")
+	big.AnchorPoint = Vector2.new(0.5, 0.5)
+	big.Position = UDim2.new(0.5, 0, 0.28, 0)
+	big.Size = UDim2.new(0.8, 0, 0, 100)
+	big.BackgroundTransparency = 1
+	big.TextColor3 = Color3.new(1, 1, 1)
+	big.TextStrokeTransparency = 0.2
+	big.TextScaled = true
+	big.Font = Enum.Font.FredokaOne
+	big.Visible = false
+	big.Parent = gui
 
 	while true do
-		local level = attr("Level", 1)
-		local xp = attr("Xp", 0)
-		local needed = math.max(attr("XpNeeded", 1), 1)
-		levelLabel.Text = `⭐ Boutique niveau {level}`
-		barFill.Size = UDim2.fromScale(math.clamp(xp / needed, 0, 1), 1)
-
-		local combo = attr("Combo", 0)
-		local multiplier = attr("ComboMultiplier", 1)
-		comboLabel.Text = if multiplier > 1
-			then `🔥 Série : {combo}  (gains x{multiplier})`
-			else `🔥 Série : {combo}`
-		comboLabel.TextColor3 = if multiplier > 1 then Color3.fromRGB(255, 170, 60) else Color3.new(1, 1, 1)
-
 		local now = workspace:GetServerTimeNow()
-		local eventState = attr("EventState", "Waiting")
-		if eventState == "Active" then
-			eventLabel.Text = `🏆 GRAND CHAUDRON ! {attr("EventProgress", 0)}/{attr("EventGoal", 0)}\n⏳ {formatTime(
-				attr("EventEndsAt", now) - now
-			)} — gains x2`
-			eventLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
-		elseif eventState == "Party" then
-			eventLabel.Text = "🎉 FÊTE DES POTIONS !"
-			eventLabel.TextColor3 = Color3.fromRGB(255, 120, 220)
-		else
-			eventLabel.Text = `🏆 Grand Chaudron dans {formatTime(attr("NextEventAt", now) - now)}`
-			eventLabel.TextColor3 = Color3.new(1, 1, 1)
-		end
-
-		local personal = Players.LocalPlayer:GetAttribute("SecretsFound")
-		local found = if type(personal) == "number" then personal else 0
-		secretsLabel.Text = `✨ Mes recettes secrètes : {found}/{attr("SecretsTotal", 3)}`
-		local player = Players.LocalPlayer
-		for index, label in challengeLabels do
-			local text = player:GetAttribute(`Challenge{index}Text`)
-			if type(text) == "string" then
-				local progress = player:GetAttribute(`Challenge{index}Progress`) or 0
-				local goal = player:GetAttribute(`Challenge{index}Goal`) or 1
-				local reward = player:GetAttribute(`Challenge{index}Reward`) or 0
-				if player:GetAttribute(`Challenge{index}Done`) == true then
-					label.Text = `✅ {text}`
-					label.TextColor3 = Color3.fromRGB(120, 255, 150)
-				else
-					label.Text = `• {text}  {progress}/{goal}  ({reward} 💰)`
-					label.TextColor3 = Color3.new(1, 1, 1)
-				end
-			else
-				label.Text = ""
-			end
-		end
+		local speed = number(player:GetAttribute("Speed"), 0)
+		local perSecond = number(player:GetAttribute("SpeedPerSecond"), 0)
+		speedLabel.Text = `⚡ Vitesse : {Format.Number(speed)}  (+{Format.Number(perSecond)}/s)`
+		winsLabel.Text = `🏆 Victoires : {Format.Number(number(player:GetAttribute("Wins"), 0))}`
+		local multiplier = number(player:GetAttribute("Multiplier"), 1)
+		local boostLeft = number(player:GetAttribute("BoostUntil"), 0) - os.time()
+		gainLabel.Text = if boostLeft > 0
+			then `🦸 Gains ×{multiplier} · 🚀 Turbo {formatTime(boostLeft)}`
+			else `🦸 Gains ×{multiplier}`
+		flyLabel.Text = `✈️ Vol : {math.floor(number(player:GetAttribute("FlySpeed"), 0))} m/s`
 
 		local dailyGoal = player:GetAttribute("DailyGoal")
 		if type(dailyGoal) == "number" then
 			if player:GetAttribute("DailyClaimed") == true then
-				dailyLabel.Text = "📅 Défi du jour réussi ✅ — reviens demain !"
-				dailyLabel.TextColor3 = Color3.fromRGB(120, 255, 150)
+				dailyLabel.Text = "📅 Défi du jour réussi ✅"
 			else
-				local served = player:GetAttribute("DailyServed") or 0
-				local reward = player:GetAttribute("DailyReward") or 0
-				dailyLabel.Text = `📅 Défi du jour : sers {dailyGoal} potions {served}/{dailyGoal} ({reward} 💰)`
-				dailyLabel.TextColor3 = Color3.new(1, 1, 1)
+				local races = number(player:GetAttribute("DailyRaces"), 0)
+				local reward = number(player:GetAttribute("DailyReward"), 0)
+				dailyLabel.Text = `📅 Défi : {races}/{dailyGoal} courses ({reward} 🏆)`
 			end
 		else
 			dailyLabel.Text = ""
 		end
-		local streak = player:GetAttribute("DailyStreak")
-		streakLabel.Text = if type(streak) == "number" and streak > 0
-			then `🎁 Connexion : {streak} jour(s) d'affilée`
-			else ""
+		local streak = number(player:GetAttribute("DailyStreak"), 0)
+		streakLabel.Text = if streak > 0 then `🎁 Connexion : {streak} jour(s) d'affilée` else ""
 
-		local protected = player:GetAttribute("NoSplash") == true
-		protectButton.Text = if protected
-			then "🛡️ Protégé des potions : OUI"
-			else "💦 Bataille de potions : OUI"
-		protectButton.BackgroundColor3 = if protected then Color3.fromRGB(50, 90, 140) else Color3.fromRGB(60, 50, 90)
+		local phase = state:GetAttribute("RacePhase")
+		local endsAt = number(state:GetAttribute("PhaseEndsAt"), now)
+		local racing = player:GetAttribute("Racing") == true
+		local distanceValue = player:GetAttribute("RaceDistance")
+		local raceWins = number(player:GetAttribute("RaceWins"), 0)
+		big.Visible = false
+		if phase == "Intermission" then
+			pill.Text = `🏁 Prochaine course dans {formatTime(endsAt - now)}`
+		elseif phase == "Countdown" then
+			pill.Text = "🏁 Prépare-toi !"
+			if racing then
+				big.Visible = true
+				big.Text = tostring(math.max(1, math.ceil(endsAt - now)))
+			end
+		elseif phase == "Racing" then
+			pill.Text = `🏁 COURSE ! {formatTime(endsAt - now)}`
+			if racing and type(distanceValue) == "number" then
+				local startAt = number(state:GetAttribute("RaceStartAt"), now)
+				big.Visible = true
+				local zoneText = `Zone {zonesReached(distanceValue)}/{#Race.Zones}`
+				local winsText = Format.Number(raceWins)
+				big.Text = if now - startAt < 1
+					then "GO ! 🚀"
+					else `{Format.Number(distanceValue)} m · {zoneText}\n+{winsText} 🏆`
+			end
+		elseif phase == "Results" then
+			pill.Text = "🏆 Résultats"
+			if type(distanceValue) == "number" then
+				big.Visible = true
+				big.Text = `Résultat : {Format.Number(distanceValue)} m\n+{Format.Number(raceWins)} 🏆`
+			end
+		else
+			pill.Text = ""
+		end
 
-		task.wait(0.25)
+		task.wait(0.1)
 	end
 end
 

@@ -20,72 +20,55 @@ export type Product = {
 	Description: string,
 	Price: number,
 	Color: Color3,
-	-- Pièces données (packs de pièces).
-	Coins: number?,
+	-- Victoires données (packs de victoires).
+	Wins: number?,
 }
 
 local GamePasses: { Pass } = {
 	{
-		Key = "DoubleCoins",
+		Key = "SpeedX2",
 		Id = 0,
-		Name = "Pièces ×2",
-		Description = "Double les pièces payées par les clients",
-		Price = 249,
+		Name = "Vitesse ×2",
+		Description = "Double tous tes gains de vitesse",
+		Price = 199,
 		Color = Color3.fromRGB(255, 210, 80),
 	},
 	{
-		Key = "VIP",
+		Key = "WinsX2",
 		Id = 0,
-		Name = "VIP",
-		Description = "Titre 👑 VIP + 1 place dans le panier",
-		Price = 399,
-		Color = Color3.fromRGB(255, 150, 220),
-	},
-	{
-		Key = "ExpressBrew",
-		Id = 0,
-		Name = "Chaudron express",
-		Description = "Tes potions sont prêtes presque instantanément",
-		Price = 199,
+		Name = "Victoires ×2",
+		Description = "Double les victoires gagnées en course",
+		Price = 299,
 		Color = Color3.fromRGB(120, 220, 255),
 	},
 }
 
 local Products: { Product } = {
 	{
-		Key = "PrankPotion",
+		Key = "Turbo",
 		Id = 0,
-		Name = "Potion farce",
-		Description = "Transforme tout le serveur pendant 30 s ! (sauf les joueurs protégés)",
+		Name = "Turbo ×3",
+		Description = "Gains de vitesse ×3 pendant 10 minutes",
 		Price = 49,
-		Color = Color3.fromRGB(200, 120, 255),
+		Color = Color3.fromRGB(255, 120, 60),
 	},
 	{
-		Key = "CoinsS",
+		Key = "Wins100",
 		Id = 0,
-		Name = "Sac de pièces",
-		Description = "+500 pièces",
+		Name = "Sac de victoires",
+		Description = "+100 🏆",
 		Price = 99,
 		Color = Color3.fromRGB(255, 220, 120),
-		Coins = 500,
+		Wins = 100,
 	},
 	{
-		Key = "CoinsM",
+		Key = "Wins1000",
 		Id = 0,
-		Name = "Coffre de pièces",
-		Description = "+1 600 pièces",
-		Price = 249,
-		Color = Color3.fromRGB(255, 200, 80),
-		Coins = 1600,
-	},
-	{
-		Key = "CoinsL",
-		Id = 0,
-		Name = "Trésor de pièces",
-		Description = "+6 000 pièces",
-		Price = 699,
+		Name = "Coffre de victoires",
+		Description = "+1 000 🏆",
+		Price = 499,
 		Color = Color3.fromRGB(255, 170, 40),
-		Coins = 6000,
+		Wins = 1000,
 	},
 }
 
@@ -114,8 +97,6 @@ return {
 	Products = Products,
 	PassById = passById,
 	ProductById = productById,
-	ExpressBrewSeconds = 0.3,
-	PrankDurationSeconds = 30,
 	-- Nombre d'achats récents mémorisés par joueur pour éviter les doubles attributions.
 	PurchaseIdCacheSize = 50,
 }

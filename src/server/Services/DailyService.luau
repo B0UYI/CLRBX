@@ -1,7 +1,7 @@
 --!strict
 -- Retour quotidien, sauvegardé :
---  • cadeau de connexion qui grandit avec la série de jours d'affilée ;
---  • grand défi du jour (servir N potions), remis à zéro chaque jour.
+--  • cadeau de connexion en victoires, qui grandit avec la série de jours d'affilée ;
+--  • défi du jour : faire N courses, remis à zéro chaque jour.
 -- Jour = numéro de jour UTC (os.time() // 86400).
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -9,7 +9,7 @@ local Gameplay = require(Shared.Config.Gameplay)
 local DataService = require(script.Parent.DataService)
 local FxService = require(script.Parent.FxService)
 local NotifyService = require(script.Parent.NotifyService)
-local PlayerService = require(script.Parent.PlayerService)
+local StatsService = require(script.Parent.StatsService)
 
 local DailyService = {}
 
@@ -26,9 +26,9 @@ local function publish(player: Player)
 	end
 	local daily = data.Daily
 	player:SetAttribute("DailyStreak", daily.Streak)
-	player:SetAttribute("DailyServed", math.min(daily.Served, Config.ServeGoal))
-	player:SetAttribute("DailyGoal", Config.ServeGoal)
-	player:SetAttribute("DailyReward", Config.ServeReward)
+	player:SetAttribute("DailyRaces", math.min(daily.Races, Config.RaceGoal))
+	player:SetAttribute("DailyGoal", Config.RaceGoal)
+	player:SetAttribute("DailyReward", Config.RaceReward)
 	player:SetAttribute("DailyClaimed", daily.GoalClaimed)
 end
 
@@ -54,20 +54,20 @@ local function ensureToday(player: Player)
 	end
 	daily.Streak = if daily.Day == day - 1 then daily.Streak + 1 else 1
 	daily.Day = day
-	daily.Served = 0
+	daily.Races = 0
 	daily.GoalClaimed = false
 
 	local rewards = Config.LoginRewards
 	local reward = rewards[math.min(daily.Streak, #rewards)]
 	local nextReward = rewards[math.min(daily.Streak + 1, #rewards)]
-	-- Pièces données tout de suite (rien n'est perdu si le joueur part avant le message).
-	PlayerService.AddCoins(player, reward, "TimedReward", `Connexion_{daily.Streak}`)
+	-- Victoires données tout de suite (rien n'est perdu si le joueur part avant le message).
+	StatsService.AddWins(player, reward, "TimedReward", `Connexion_{daily.Streak}`, true)
 	local streak = daily.Streak
 	task.delay(Config.GiftDelaySeconds, function()
 		if player.Parent then
 			NotifyService.Send(
 				player,
-				`🎁 Cadeau du jour (série : {streak} j) : +{reward} 💰 Reviens demain : +{nextReward} !`,
+				`🎁 Cadeau du jour (série : {streak} j) : +{reward} 🏆 Reviens demain : +{nextReward} !`,
 				"success"
 			)
 			celebrate(player)
@@ -76,23 +76,22 @@ local function ensureToday(player: Player)
 	publish(player)
 end
 
--- Appelé à chaque bonne potion servie par ce joueur.
-function DailyService.RecordServe(player: Player)
+-- Appelé à la fin de chaque course du joueur.
+function DailyService.RecordRace(player: Player)
 	ensureToday(player)
 	local data = DataService.Get(player)
 	if not data then
 		return
 	end
-	data.Served += 1
 	local daily = data.Daily
 	if not daily.GoalClaimed then
-		daily.Served += 1
-		if daily.Served >= Config.ServeGoal then
+		daily.Races += 1
+		if daily.Races >= Config.RaceGoal then
 			daily.GoalClaimed = true
-			PlayerService.AddCoins(player, Config.ServeReward, "TimedReward", "DefiDuJour")
+			StatsService.AddWins(player, Config.RaceReward, "TimedReward", "DefiDuJour", true)
 			NotifyService.Send(
 				player,
-				`📅 Défi du jour réussi ! +{Config.ServeReward} 💰 Nouveau défi demain.`,
+				`📅 Défi du jour réussi ! +{Config.RaceReward} 🏆 Nouveau défi demain.`,
 				"success"
 			)
 			celebrate(player)
