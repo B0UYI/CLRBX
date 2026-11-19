@@ -1,30 +1,30 @@
 --!strict
--- Tapis de course du lobby : rester dessus fait gagner de la Vitesse en continu.
+-- Tapis de course du lobby : rester dessus fait des pas automatiquement (sans bouger).
 -- Débloqués par le TOTAL de victoires gagnées (dépenser ses victoires ne fait pas perdre l'accès).
 
 export type Treadmill = {
 	Id: string,
 	Name: string,
-	SpeedPerSecond: number,
+	StepsPerSecond: number,
 	RequiredWins: number,
 	Color: Color3,
 }
 
 local List: { Treadmill } = {
-	{ Id = "bois", Name = "Tapis de bois", SpeedPerSecond = 2, RequiredWins = 0, Color = Color3.fromRGB(150, 105, 70) },
-	{ Id = "fer", Name = "Tapis de fer", SpeedPerSecond = 8, RequiredWins = 20, Color = Color3.fromRGB(160, 165, 175) },
-	{ Id = "or", Name = "Tapis d'or", SpeedPerSecond = 30, RequiredWins = 150, Color = Color3.fromRGB(255, 200, 60) },
+	{ Id = "bois", Name = "Tapis de bois", StepsPerSecond = 2, RequiredWins = 0, Color = Color3.fromRGB(150, 105, 70) },
+	{ Id = "fer", Name = "Tapis de fer", StepsPerSecond = 4, RequiredWins = 20, Color = Color3.fromRGB(160, 165, 175) },
+	{ Id = "or", Name = "Tapis d'or", StepsPerSecond = 6, RequiredWins = 150, Color = Color3.fromRGB(255, 200, 60) },
 	{
 		Id = "diamant",
 		Name = "Tapis de diamant",
-		SpeedPerSecond = 120,
+		StepsPerSecond = 8,
 		RequiredWins = 1000,
 		Color = Color3.fromRGB(110, 230, 255),
 	},
 	{
 		Id = "cosmique",
 		Name = "Tapis cosmique",
-		SpeedPerSecond = 500,
+		StepsPerSecond = 10,
 		RequiredWins = 6000,
 		Color = Color3.fromRGB(190, 90, 255),
 	},

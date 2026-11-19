@@ -1,5 +1,5 @@
 --!strict
--- Tapis de course : rester dessus donne de la Vitesse chaque seconde (passif).
+-- Tapis de course : rester dessus fait des pas automatiquement chaque seconde (passif).
 -- Chaque tapis se débloque avec un TOTAL de victoires gagnées.
 
 local Players = game:GetService("Players")
@@ -106,7 +106,7 @@ local function build(folder: Instance)
 		local lock = if def.RequiredWins > 0
 			then `🔒 {Format.Number(def.RequiredWins)} 🏆 au total`
 			else "✅ Pour tous"
-		label.Text = `{def.Name}\n+{Format.Number(def.SpeedPerSecond)} ⚡/s\n{lock}`
+		label.Text = `{def.Name}\n{def.StepsPerSecond} pas/s automatiques\n{lock}`
 		label.Parent = gui
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 10)
@@ -153,7 +153,7 @@ function TreadmillService:Start()
 					local treadmill = treadmillUnder(root)
 					if treadmill then
 						if data.TotalWins >= treadmill.Def.RequiredWins then
-							local gained = StatsService.AddSpeed(player, treadmill.Def.SpeedPerSecond)
+							local gained = StatsService.AddSteps(player, treadmill.Def.StepsPerSecond)
 							FxService.Popup(root.Position + Vector3.new(0, 4, 0), `+{Format.Number(gained)} ⚡`)
 						elseif os.clock() - (lastLockWarning[player] or 0) >= LOCK_WARNING_SECONDS then
 							lastLockWarning[player] = os.clock()

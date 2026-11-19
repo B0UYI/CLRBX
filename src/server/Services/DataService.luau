@@ -9,8 +9,11 @@ local Players = game:GetService("Players")
 local ProfileStore = require(script.Parent.Parent.Packages.ProfileStore) :: any
 
 export type PlayerData = {
-	-- Stat de progression (+1 par seconde de course) : vitesse de course = 16 + Vitesse.
+	-- Stat de progression (points gagnés à chaque pas) : remplit le Niveau et augmente la vitesse de course.
 	Speed: number,
+	-- Palier de pas acheté (index dans Config/Steps) et forme d'évolution (index dans Config/Evolutions).
+	StepTier: number,
+	Evolution: number,
 	-- Victoires disponibles (monnaie de l'équipement) et total gagné depuis le début (débloque mondes et tapis).
 	Wins: number,
 	TotalWins: number,
@@ -31,6 +34,8 @@ export type PlayerData = {
 
 local TEMPLATE: PlayerData = {
 	Speed = 0,
+	StepTier = 1,
+	Evolution = 1,
 	Wins = 0,
 	TotalWins = 0,
 	Equipment = {},

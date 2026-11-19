@@ -1,12 +1,13 @@
 --!strict
 -- Mondes : un parcours d'obstacles par monde (généré depuis Config/Worlds, toujours le même tracé),
--- portails dans le lobby, lave et vide, 3 points de contrôle, arrivée qui rapporte des Victoires
--- puis relance le parcours (pour battre son record).
+-- portails dans le lobby, lave, vide et créatures, 10 étapes (barrière de vitesse requise à l'entrée,
+-- victoires à la fin), puis on relance le parcours (pour battre son record).
 -- Le serveur suit la position des joueurs pour détecter le passage des lignes (fiable même à très
--- grande vitesse), ignore les déplacements invraisemblables (téléportation) et exige les points de
--- contrôle dans l'ordre avant l'arrivée.
+-- grande vitesse), ignore les déplacements invraisemblables (téléportation), exige les étapes dans
+-- l'ordre et la vitesse requise (barrière contournée = retour au début de l'étape).
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Gameplay = require(Shared.Config.Gameplay)
@@ -29,12 +30,13 @@ local WorldService = {}
 local ORIGIN_X = 1200
 local WORLD_Y = 60
 local SPACING_Z = 120
-local COURSE_WIDTH = 24
+local COURSE_WIDTH = 40
 local HALF_WIDTH = COURSE_WIDTH / 2
 local FLOOR_THICKNESS = 2
 local START_LENGTH = 40
 local SPAWN_OFFSET = 20
-local CHECKPOINT_LENGTH = 12
+local STAGE_PAD_LENGTH = 14
+local CREATURE_SIZE = 5
 local FINISH_RUNOUT = 30
 local CHECK_INTERVAL = 0.1
 local VOID_DEPTH = 30
@@ -42,19 +44,21 @@ local RESPAWN_DEBOUNCE = 0.5
 local PORTAL_Z = -40
 local PORTAL_SPACING = 22
 local GOLD = Color3.fromRGB(255, 210, 60)
-local CHECKPOINT_COLOR = Color3.fromRGB(80, 255, 120)
+local STAGE_COLOR = Color3.fromRGB(80, 255, 120)
+local GATE_COLOR = Color3.fromRGB(255, 70, 70)
 
 type Built = {
 	Def: Worlds.World,
 	Index: number,
 	Start: Vector3,
-	-- Positions X (depuis le départ) des points de contrôle et de l'arrivée.
-	Checkpoints: { number },
-	FinishX: number,
+	-- Pour chaque étape k : X (depuis le départ) de la barrière d'entrée et de la ligne de fin.
+	GateX: { number },
+	EndX: { number },
 }
 
 type Progress = {
 	World: Built,
+	-- Nombre d'étapes terminées dans ce passage (0 à 10).
 	Checkpoint: number,
 	LastPosition: Vector3?,
 	RunStart: number,
@@ -105,8 +109,9 @@ local function rootOf(player: Player): BasePart?
 	return if root and root:IsA("BasePart") then root else nil
 end
 
-local function spawnPoint(world: Built, checkpoint: number): Vector3
-	local x = if checkpoint == 0 then SPAWN_OFFSET else world.Checkpoints[checkpoint]
+-- Réapparition : au départ, ou juste après la ligne de fin de la dernière étape terminée.
+local function spawnPoint(world: Built, stagesDone: number): Vector3
+	local x = if stagesDone == 0 then SPAWN_OFFSET else world.EndX[stagesDone] + STAGE_PAD_LENGTH / 2
 	return world.Start + Vector3.new(x, 4, 0)
 end
 
@@ -148,16 +153,18 @@ local function onHazardTouched(hit: BasePart)
 	end
 end
 
-local KINDS = { "floor", "gap", "lava", "wall", "hurdles", "beam" }
+local KINDS = { "floor", "islands", "gap", "lava", "wall", "hurdles", "beam", "boulder" }
 
 local function pickKind(random: Random, difficulty: number): string
 	local weights: { [string]: number } = {
 		floor = 3 - 2 * difficulty,
+		islands = 0.5 + 1.5 * difficulty,
 		gap = 1 + difficulty,
 		lava = 1 + difficulty,
 		wall = 1,
 		hurdles = 1,
 		beam = 0.5 + difficulty,
+		boulder = 1.5 * difficulty,
 	}
 	local total = 0
 	for _, kind in KINDS do
@@ -240,37 +247,170 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 		})
 	end
 
+	-- Îlots sur la lave : plateformes séparées par des bandes de lave.
+	local function islands(x: number, length: number, difficulty: number)
+		lava(x, length)
+		local count = math.max(2, math.floor(length / 14))
+		local slot = length / count
+		local size = math.max(5, slot * (0.8 - 0.35 * difficulty))
+		for i = 0, count - 1 do
+			local z = random:NextNumber(-HALF_WIDTH * 0.4, HALF_WIDTH * 0.4) * difficulty
+			part(model, {
+				Name = "Ilot",
+				Size = Vector3.new(size, FLOOR_THICKNESS + 0.4, math.max(8, COURSE_WIDTH * (0.7 - 0.4 * difficulty))),
+				Position = start + Vector3.new(x + slot * i + slot / 2, -FLOOR_THICKNESS / 2 + 0.3, z),
+				Color = def.FloorColor,
+				Material = def.FloorMaterial,
+			})
+		end
+	end
+
+	-- Chemin étroit entre deux bandes de lave, avec un boulet qui roule vers les coureurs.
+	local function boulder(x: number, length: number)
+		local width = 14
+		floor(x, length, 0, width, "Chemin")
+		local side = (COURSE_WIDTH - width) / 2
+		for _, sign in { -1, 1 } do
+			local p = part(model, {
+				Name = "Lave",
+				Size = Vector3.new(length, FLOOR_THICKNESS, side),
+				Position = start
+					+ Vector3.new(x + length / 2, -FLOOR_THICKNESS / 2 - 0.5, sign * (width / 2 + side / 2)),
+				Color = def.LavaColor,
+				Material = Enum.Material.Neon,
+			})
+			p.Touched:Connect(onHazardTouched)
+		end
+		local ball = part(model, {
+			Name = "Boulet",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(10, 10, 10),
+			Position = start + Vector3.new(x + length, 5, 0),
+			Color = Color3.fromRGB(95, 95, 115),
+			Material = Enum.Material.Slate,
+			CanCollide = false,
+		})
+		ball.Touched:Connect(onHazardTouched)
+		TweenService:Create(
+			ball,
+			TweenInfo.new(random:NextNumber(1.5, 2.5), Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1, false),
+			{ Position = start + Vector3.new(x, 5, 0) }
+		):Play()
+	end
+
+	-- Créature qui patrouille en travers de la piste : la toucher renvoie au début de l'étape.
+	local function creature(x: number, speedFactor: number)
+		local body = part(model, {
+			Name = "Creature",
+			Size = Vector3.new(CREATURE_SIZE, CREATURE_SIZE, CREATURE_SIZE),
+			Color = def.AccentColor:Lerp(Color3.new(0, 0, 0), 0.35),
+			Material = Enum.Material.SmoothPlastic,
+		})
+		local fromZ = -HALF_WIDTH + CREATURE_SIZE
+		local toZ = HALF_WIDTH - CREATURE_SIZE
+		if random:NextNumber() < 0.5 then
+			fromZ, toZ = toZ, fromZ
+		end
+		local from = start + Vector3.new(x, CREATURE_SIZE / 2, fromZ)
+		-- Face (yeux) tournée vers les coureurs qui arrivent par -X.
+		body.CFrame = CFrame.lookAt(from, from - Vector3.xAxis)
+		local face = Instance.new("SurfaceGui")
+		face.Face = Enum.NormalId.Front
+		face.Parent = body
+		local eyes = Instance.new("TextLabel")
+		eyes.Size = UDim2.fromScale(1, 1)
+		eyes.BackgroundTransparency = 1
+		eyes.TextScaled = true
+		eyes.Text = "👀"
+		eyes.Parent = face
+		body.Touched:Connect(onHazardTouched)
+		local duration = random:NextNumber(1.8, 3.2) / speedFactor
+		local goal = CFrame.lookAt(
+			start + Vector3.new(x, CREATURE_SIZE / 2, toZ),
+			start + Vector3.new(x - 1, CREATURE_SIZE / 2, toZ)
+		)
+		TweenService:Create(
+			body,
+			TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ CFrame = goal }
+		):Play()
+	end
+
 	-- Départ
 	local startFloor = floor(0, START_LENGTH, 0, COURSE_WIDTH, "Depart")
 	edges(0, START_LENGTH)
-	billboard(startFloor, `🌍 {def.Name}\nArrivée : +{Format.Number(def.Wins)} 🏆`, def.AccentColor, 8, 200)
+	local total = 0
+	for stage = 1, Worlds.StageCount do
+		total += Worlds.StageWins(def, stage)
+	end
+	billboard(
+		startFloor,
+		`🌍 {def.Name}\n10 étapes · jusqu'à +{Format.Number(total)} 🏆`,
+		def.AccentColor,
+		8,
+		200
+	)
 
-	-- Obstacles, avec un point de contrôle à 25 %, 50 % et 75 %.
-	local targets = { def.Length * 0.25, def.Length * 0.5, def.Length * 0.75 }
-	local checkpoints: { number } = {}
+	local gateX: { number } = {}
+	local endX: { number } = {}
 	local x = START_LENGTH
-	while x < def.Length - 20 do
-		local target = targets[#checkpoints + 1]
-		if target and x >= target then
-			local pad = floor(x, CHECKPOINT_LENGTH, 0, COURSE_WIDTH, "PointDeControle")
-			edges(x, CHECKPOINT_LENGTH)
-			part(model, {
-				Name = "LigneControle",
-				Size = Vector3.new(1, 0.2, COURSE_WIDTH),
-				Position = start + Vector3.new(x + CHECKPOINT_LENGTH / 2, 0.1, 0),
-				Color = CHECKPOINT_COLOR,
-				Material = Enum.Material.Neon,
-				CanCollide = false,
-				CanQuery = false,
+	for stage = 1, Worlds.StageCount do
+		local difficulty = math.clamp(def.Difficulty + 0.3 * (stage - 1) / (Worlds.StageCount - 1), 0, 1)
+		local required = Worlds.RequiredSpeed(def, stage)
+
+		-- Barrière d'entrée (vitesse requise) : bloquante côté joueur tant qu'il est trop lent.
+		table.insert(gateX, x + 1)
+		if required > 0 then
+			local gate = part(model, {
+				Name = `Barriere_{stage}`,
+				Size = Vector3.new(1, 14, COURSE_WIDTH),
+				Position = start + Vector3.new(x + 1, 7, 0),
+				Color = GATE_COLOR,
+				Material = Enum.Material.ForceField,
+				Transparency = 0.3,
 			})
-			billboard(pad, `🚩 {#checkpoints + 1}/3`, CHECKPOINT_COLOR, 5, 150)
-			table.insert(checkpoints, x + CHECKPOINT_LENGTH / 2)
-			x += CHECKPOINT_LENGTH
-		else
-			local length = math.min(random:NextInteger(30, 70), def.Length - 20 - x)
-			local kind = if length < 14 then "floor" else pickKind(random, def.Difficulty)
-			if kind == "gap" then
-				local gap = math.min(length - 10, math.floor(6 + 8 * def.Difficulty * random:NextNumber() + 0.5))
+			gate:SetAttribute("RequiredSpeed", required)
+		end
+		local sign = part(model, {
+			Name = `Panneau_{stage}`,
+			Size = Vector3.new(1, 1, 1),
+			Position = start + Vector3.new(x + 1, 16, 0),
+			Transparency = 1,
+			CanCollide = false,
+			CanQuery = false,
+		})
+		local requirement = if required > 0
+			then `⚡ Vitesse requise : {Format.Number(required)}`
+			else "⚡ Aucune vitesse requise"
+		billboard(
+			sign,
+			`Étape {stage}\n{requirement}\nNiveau conseillé : {math.max(1, stage * 2 + (def.Difficulty * 50) // 1)}`,
+			Color3.fromRGB(255, 240, 120),
+			0,
+			250
+		)
+
+		-- Zone d'obstacles de l'étape.
+		local zoneEnd = x + def.StageLength
+		local first = true
+		while x < zoneEnd do
+			local length = math.min(random:NextInteger(18, 30), zoneEnd - x)
+			-- L'étape 1 du premier monde : terrain plat (seule la créature est à éviter).
+			local kind = if length < 14
+					or (first and stage == 1)
+					or difficulty < 0.05
+				then "floor"
+				else pickKind(random, difficulty)
+			first = false
+			if kind == "boulder" and (stage < 3 or length < 20) then
+				kind = "floor"
+			end
+			if kind == "boulder" then
+				boulder(x, length)
+			elseif kind == "islands" then
+				islands(x, length, difficulty)
+			elseif kind == "gap" then
+				local gap = math.min(length - 8, math.floor(5 + 9 * difficulty * random:NextNumber() + 0.5))
 				floor(x, length - gap, 0, COURSE_WIDTH)
 				edges(x, length - gap)
 			elseif kind == "lava" then
@@ -286,12 +426,9 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 			elseif kind == "hurdles" then
 				floor(x, length, 0, COURSE_WIDTH)
 				edges(x, length)
-				local count = random:NextInteger(2, 3)
-				for i = 1, count do
-					hurdle(x + length * i / (count + 1))
-				end
+				hurdle(x + length / 2)
 			elseif kind == "beam" then
-				local width = math.max(5, 10 - 5 * def.Difficulty)
+				local width = math.max(5, 12 - 7 * difficulty)
 				local z = random:NextNumber(-HALF_WIDTH + width / 2, HALF_WIDTH - width / 2)
 				floor(x, length, z, width, "Poutre")
 			else
@@ -300,17 +437,37 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 			end
 			x += length
 		end
-	end
-	assert(#checkpoints == #targets, `Monde {def.Id} : points de contrôle manquants`)
+		-- Créatures : 1 à l'étape 1, puis de plus en plus nombreuses et rapides.
+		local creatures = 1 + (stage - 1) // 2
+		for i = 1, creatures do
+			creature(zoneEnd - def.StageLength + def.StageLength * i / (creatures + 1), 1 + 0.15 * (stage - 1))
+		end
 
-	-- Arrivée : plateforme, arche dorée, ligne au sol et mur invisible au bout.
-	floor(x, def.Length + FINISH_RUNOUT - x, 0, COURSE_WIDTH, "PlateformeArrivee")
-	edges(x, def.Length + FINISH_RUNOUT - x)
+		-- Fin de l'étape : dalle de victoires (et réapparition de l'étape suivante).
+		local pad = floor(x, STAGE_PAD_LENGTH, 0, COURSE_WIDTH, `FinEtape_{stage}`)
+		edges(x, STAGE_PAD_LENGTH)
+		part(model, {
+			Name = "LigneEtape",
+			Size = Vector3.new(1, 0.2, COURSE_WIDTH),
+			Position = start + Vector3.new(x + 1, 0.1, 0),
+			Color = STAGE_COLOR,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+		})
+		billboard(pad, `✅ Étape {stage}\n+{Format.Number(Worlds.StageWins(def, stage))} 🏆`, STAGE_COLOR, 5, 200)
+		table.insert(endX, x + 1)
+		x += STAGE_PAD_LENGTH
+	end
+
+	-- Arche dorée au-dessus de la dernière ligne + mur invisible au bout.
+	local finishX = endX[#endX]
+	floor(x, FINISH_RUNOUT, 0, COURSE_WIDTH, "PlateformeArrivee")
 	for _, side in { -1, 1 } do
 		part(model, {
 			Name = "PilierArrivee",
 			Size = Vector3.new(2, 16, 2),
-			Position = start + Vector3.new(def.Length, 8, side * (HALF_WIDTH + 1)),
+			Position = start + Vector3.new(finishX, 8, side * (HALF_WIDTH + 1)),
 			Color = GOLD,
 			Material = Enum.Material.Neon,
 		})
@@ -318,29 +475,20 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 	local arch = part(model, {
 		Name = "Arrivee",
 		Size = Vector3.new(2, 2, COURSE_WIDTH + 4),
-		Position = start + Vector3.new(def.Length, 16, 0),
+		Position = start + Vector3.new(finishX, 16, 0),
 		Color = GOLD,
 		Material = Enum.Material.Neon,
 	})
-	billboard(arch, `🏆 ARRIVÉE\n+{Format.Number(def.Wins)} victoires`, GOLD, 4, 400)
-	part(model, {
-		Name = "LigneArrivee",
-		Size = Vector3.new(1.5, 0.2, COURSE_WIDTH),
-		Position = start + Vector3.new(def.Length, 0.1, 0),
-		Color = GOLD,
-		Material = Enum.Material.Neon,
-		CanCollide = false,
-		CanQuery = false,
-	})
+	billboard(arch, "🏆 ARRIVÉE FINALE", GOLD, 4, 400)
 	part(model, {
 		Name = "MurDeFin",
 		Size = Vector3.new(2, 40, COURSE_WIDTH + 8),
-		Position = start + Vector3.new(def.Length + FINISH_RUNOUT, 20, 0),
+		Position = start + Vector3.new(x + FINISH_RUNOUT, 20, 0),
 		Transparency = 1,
 	})
 
 	model.Parent = parent
-	return { Def = def, Index = index, Start = start, Checkpoints = checkpoints, FinishX = def.Length }
+	return { Def = def, Index = index, Start = start, GateX = gateX, EndX = endX }
 end
 
 local function enterWorld(player: Player, world: Built)
@@ -352,11 +500,7 @@ local function enterWorld(player: Player, world: Built)
 	player:SetAttribute("World", world.Def.Id)
 	player:SetAttribute("Checkpoint", 0)
 	placeAt(player, position)
-	NotifyService.Send(
-		player,
-		`🌍 {world.Def.Name} : fonce jusqu'à l'arrivée pour +{Format.Number(world.Def.Wins)} 🏆 !`,
-		"info"
-	)
+	NotifyService.Send(player, `🌍 {world.Def.Name} : chaque étape terminée rapporte des 🏆 !`, "info")
 	OnboardingService.Advance(player, "EnteredWorld")
 end
 
@@ -392,28 +536,24 @@ function WorldService.ReturnToHub(player: Player)
 	end
 end
 
-local function finish(player: Player, current: Progress)
-	local def = current.World.Def
-	local elapsed = os.clock() - current.RunStart
-	local data = DataService.Get(player)
-	local before = if data then data.TotalWins else 0
-	local gained = StatsService.AddWins(player, def.Wins, "Gameplay", `Arrivee_{def.Id}`)
-	local record = ""
-	if data then
-		data.Finishes += 1
-		local best = data.BestTimes[def.Id]
-		if not best or elapsed < best then
-			data.BestTimes[def.Id] = elapsed
-			record = " · ⏱️ Nouveau record !"
-		end
-	end
+local function celebrate(player: Player, amount: number)
 	local root = rootOf(player)
 	if root then
-		FxService.Confetti(root.Position + Vector3.new(0, 6, 0), 200)
+		FxService.Confetti(root.Position + Vector3.new(0, 6, 0), amount)
 		FxService.Sound(root, "Cash")
 	end
-	local time = (string.gsub(string.format("%.1f", elapsed), "%.", ","))
-	NotifyService.Send(player, `🏆 +{Format.Number(gained)} victoires ! {def.Name} en {time} s{record}`, "success")
+end
+
+-- Étape terminée : victoires de l'étape (et nouveaux mondes débloqués).
+local function clearStage(player: Player, current: Progress, stage: number)
+	local def = current.World.Def
+	local data = DataService.Get(player)
+	local before = if data then data.TotalWins else 0
+	local gained = StatsService.AddWins(player, Worlds.StageWins(def, stage), "Gameplay", `Etape_{def.Id}_{stage}`)
+	current.Checkpoint = stage
+	player:SetAttribute("Checkpoint", stage)
+	celebrate(player, 60)
+	NotifyService.Send(player, `✅ Étape {stage} : +{Format.Number(gained)} 🏆`, "success")
 	if data then
 		for _, world in ordered do
 			local required = world.Def.RequiredWins
@@ -426,17 +566,34 @@ local function finish(player: Player, current: Progress)
 			end
 		end
 	end
-	DailyService.RecordFinish(player)
-	OnboardingService.Advance(player, "Finished")
+	OnboardingService.Advance(player, "StageCleared")
+end
 
-	-- On repart du début du parcours pour battre son temps.
+-- Étape 10 terminée : record de temps, défi du jour, et on repart du début.
+local function finishWorld(player: Player, current: Progress)
+	local def = current.World.Def
+	local elapsed = os.clock() - current.RunStart
+	local data = DataService.Get(player)
+	local record = ""
+	if data then
+		data.Finishes += 1
+		local best = data.BestTimes[def.Id]
+		if not best or elapsed < best then
+			data.BestTimes[def.Id] = elapsed
+			record = " · ⏱️ Nouveau record !"
+		end
+	end
+	celebrate(player, 250)
+	local time = (string.gsub(string.format("%.1f", elapsed), "%.", ","))
+	NotifyService.Send(player, `🏆 {def.Name} terminé en {time} s{record}`, "success")
+	DailyService.RecordFinish(player)
 	current.Checkpoint = 0
 	current.RunStart = os.clock()
 	player:SetAttribute("Checkpoint", 0)
 	placeAt(player, spawnPoint(current.World, 0))
 end
 
--- Suivi des joueurs dans les mondes : vide, points de contrôle, arrivée.
+-- Suivi des joueurs dans les mondes : vide, barrières de vitesse, fins d'étape.
 local function track()
 	for player, current in progress do
 		local root = rootOf(player)
@@ -457,26 +614,26 @@ local function track()
 				if inLane and (position - previous).Magnitude <= allowed then
 					local fromX = previous.X - start.X
 					local toX = position.X - start.X
-					local checkpoints = current.World.Checkpoints
-					while
-						current.Checkpoint < #checkpoints
-						and fromX < checkpoints[current.Checkpoint + 1]
-						and toX >= checkpoints[current.Checkpoint + 1]
-					do
-						current.Checkpoint += 1
-						player:SetAttribute("Checkpoint", current.Checkpoint)
-						NotifyService.Send(
-							player,
-							`🚩 Point de contrôle {current.Checkpoint}/{#checkpoints}`,
-							"info"
-						)
+					local world = current.World
+					local nextStage = current.Checkpoint + 1
+					-- Barrière contournée sans la vitesse requise : retour au début de l'étape.
+					local gate = world.GateX[nextStage]
+					local data = DataService.Get(player)
+					if gate and fromX < gate and toX >= gate and data then
+						if data.Speed < Worlds.RequiredSpeed(world.Def, nextStage) then
+							WorldService.RespawnAtCheckpoint(player)
+							continue
+						end
 					end
-					if
-						current.Checkpoint == #checkpoints
-						and fromX < current.World.FinishX
-						and toX >= current.World.FinishX
-					then
-						finish(player, current)
+					while
+						current.Checkpoint < #world.EndX
+						and fromX < world.EndX[current.Checkpoint + 1]
+						and toX >= world.EndX[current.Checkpoint + 1]
+					do
+						clearStage(player, current, current.Checkpoint + 1)
+					end
+					if current.Checkpoint >= #world.EndX then
+						finishWorld(player, current)
 					end
 				end
 			end
@@ -520,7 +677,13 @@ local function buildPortals(lobby: Instance)
 		local lock = if def.RequiredWins > 0
 			then `🔒 {Format.Number(def.RequiredWins)} 🏆 au total`
 			else "✅ Ouvert"
-		billboard(gate, `{def.Name}\n{lock}\nArrivée : +{Format.Number(def.Wins)} 🏆`, Color3.new(1, 1, 1), 10, 120)
+		billboard(
+			gate,
+			`{def.Name}\n{lock}\nÉtape 1 : +{Format.Number(Worlds.StageWins(def, 1))} 🏆`,
+			Color3.new(1, 1, 1),
+			10,
+			120
+		)
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.ActionText = "Entrer"
 		prompt.ObjectText = def.Name

@@ -7,6 +7,8 @@ local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Equipment = require(Shared.Config.Equipment)
+local Evolutions = require(Shared.Config.Evolutions)
+local Steps = require(Shared.Config.Steps)
 local Gameplay = require(Shared.Config.Gameplay)
 local Movement = require(Shared.Config.Movement)
 local Format = require(Shared.Util.Format)
@@ -52,9 +54,22 @@ function StatsService.EquipmentMultiplier(player: Player): number
 	return multiplier
 end
 
--- Multiplicateur total des gains de Vitesse : équipement × pass Vitesse ×2 × Turbo.
+function StatsService.Form(player: Player): Evolutions.Form
+	local data = DataService.Get(player)
+	local index = if data then math.clamp(data.Evolution, 1, #Evolutions.Forms) else 1
+	return Evolutions.Forms[index]
+end
+
+-- Valeur d'un pas (points de Vitesse avant multiplicateurs).
+function StatsService.StepValue(player: Player): number
+	local data = DataService.Get(player)
+	local index = if data then math.clamp(data.StepTier, 1, #Steps.Tiers) else 1
+	return Steps.Tiers[index].Value
+end
+
+-- Multiplicateur total des gains de Vitesse : évolution × équipement × pass Vitesse ×2 × Turbo.
 function StatsService.Multiplier(player: Player): number
-	local multiplier = StatsService.EquipmentMultiplier(player)
+	local multiplier = StatsService.Form(player).Multiplier * StatsService.EquipmentMultiplier(player)
 	if player:GetAttribute("Pass_SpeedX2") == true then
 		multiplier *= 2
 	end
@@ -72,6 +87,14 @@ function StatsService.Sync(player: Player)
 		return
 	end
 	player:SetAttribute("Speed", data.Speed)
+	local level, levelXp, levelNeed = Steps.LevelFor(data.Speed)
+	player:SetAttribute("Level", level)
+	player:SetAttribute("LevelXp", levelXp)
+	player:SetAttribute("LevelNeed", levelNeed)
+	player:SetAttribute("StepTier", data.StepTier)
+	player:SetAttribute("StepValue", StatsService.StepValue(player))
+	player:SetAttribute("Evolution", data.Evolution)
+	player:SetAttribute("WinsMultiplier", if player:GetAttribute("Pass_WinsX2") == true then 2 else 1)
 	player:SetAttribute("Wins", data.Wins)
 	player:SetAttribute("TotalWins", data.TotalWins)
 	player:SetAttribute("Multiplier", StatsService.Multiplier(player))
@@ -93,6 +116,14 @@ function StatsService.AddSpeed(player: Player, base: number): number
 	gainThisSecond[player] = (gainThisSecond[player] or 0) + gained
 	StatsService.Sync(player)
 	return gained
+end
+
+-- Ajoute des pas : chaque pas vaut StepValue points (× multiplicateurs). Renvoie le gain réel.
+function StatsService.AddSteps(player: Player, steps: number): number
+	if steps <= 0 then
+		return 0
+	end
+	return StatsService.AddSpeed(player, steps * StatsService.StepValue(player))
 end
 
 -- Ajoute des Victoires (doublées par le pass Victoires ×2 sauf si noBonus). Renvoie le gain réel.

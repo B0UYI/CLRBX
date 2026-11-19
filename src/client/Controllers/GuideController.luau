@@ -28,12 +28,11 @@ local function guide(step: number, lobby: Instance, _root: BasePart): (BasePart?
 		local worldId = player:GetAttribute("World")
 		local worlds = workspace:FindFirstChild("Mondes")
 		local world = if worlds and type(worldId) == "string" then worlds:FindFirstChild(worldId) else nil
-		return partOf(world and world:FindFirstChild("Arrivee")),
-			"3/4 · Fonce jusqu'à l'arrivée 🏆 (évite la lave et le vide)"
+		return partOf(world and world:FindFirstChild("FinEtape_1")),
+			"3/4 · Termine l'étape 1 : évite la créature 👀"
 	end
-	local shop = lobby:FindFirstChild("Equipement")
-	return partOf(shop and shop:FindFirstChild("Equip_trail_bleue")),
-		"4/4 · Achète ta première traînée (15 🏆) : vitesse ×1,25"
+	local steps = lobby:FindFirstChild("Pas")
+	return partOf(steps and steps:FindFirstChild("Pas_2")), "4/4 · Achète +2 par pas (5 🏆) dans le lobby 👣"
 end
 
 function GuideController:Start()

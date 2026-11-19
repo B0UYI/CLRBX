@@ -20,6 +20,16 @@ function LobbyController:Start()
 	local prompts: { ProximityPrompt } = {}
 
 	local function refreshPrompt(prompt: ProximityPrompt)
+		local stepIndex = prompt:GetAttribute("StepIndex")
+		if type(stepIndex) == "number" then
+			local tier = player:GetAttribute("StepTier")
+			local owned = type(tier) == "number" and tier >= stepIndex
+			prompt.ActionText = if owned
+				then "Possédé ✅"
+				elseif type(tier) == "number" and stepIndex == tier + 1 then "Acheter"
+				else "🔒 Palier précédent d'abord"
+			return
+		end
 		local equipId = prompt:GetAttribute("EquipId")
 		local worldId = prompt:GetAttribute("WorldId")
 		if type(equipId) == "string" then
@@ -41,7 +51,11 @@ function LobbyController:Start()
 			end
 		elseif
 			instance:IsA("ProximityPrompt")
-			and (instance:GetAttribute("EquipId") ~= nil or instance:GetAttribute("WorldId") ~= nil)
+			and (
+				instance:GetAttribute("EquipId") ~= nil
+				or instance:GetAttribute("WorldId") ~= nil
+				or instance:GetAttribute("StepIndex") ~= nil
+			)
 		then
 			table.insert(prompts, instance)
 			refreshPrompt(instance)
@@ -56,7 +70,7 @@ function LobbyController:Start()
 	end
 
 	player.AttributeChanged:Connect(function(name: string)
-		if string.sub(name, 1, 10) == "OwnsEquip_" or name == "TotalWins" then
+		if string.sub(name, 1, 10) == "OwnsEquip_" or name == "TotalWins" or name == "StepTier" then
 			for _, prompt in prompts do
 				refreshPrompt(prompt)
 			end

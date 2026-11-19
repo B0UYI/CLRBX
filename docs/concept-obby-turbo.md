@@ -1,46 +1,37 @@
 # Obby Turbo (nom provisoire) — concept « +1 Vitesse »
 
-Genre « +1 Vitesse » : plus tu cours, plus tu vas vite ; tu traverses des parcours d'obstacles qui
-rapportent des victoires ; les victoires débloquent de nouveaux mondes et achètent de l'équipement
-qui accélère ta progression.
-
-> Mécaniques de genre uniquement : mondes, parcours, noms et visuels sont **originaux**
-> (copier les cartes, noms ou visuels d'un jeu existant expose à un retrait par Roblox).
+> Mécaniques de genre uniquement : mondes, parcours, noms, formes et visuels sont **originaux**.
 
 ## Boucle de jeu
-1. **⚡ Vitesse (passif)** : +1 par seconde de course × multiplicateur d'équipement (× pass, × Turbo).
-   Les **tapis de course** du lobby donnent de la vitesse sans bouger (débloqués par le total de victoires).
-2. **Vitesse = vitesse de course réelle** (16 + Vitesse, plafonnée à 1 500). Limiteur 100/50/25/10 % (touche L).
-3. **Parcours d'obstacles** (portails du lobby) : vides, lave, murs à contourner, haies, poutres étroites,
-   3 points de contrôle. **L'arrivée rapporte des 🏆**, puis on repart du début (record de temps sauvegardé).
-4. **Mondes** débloqués par le **total** de victoires (dépenser ne fait rien perdre).
-5. **Équipement** (acheté en victoires) : 3 emplacements dont les multiplicateurs se **multiplient**.
+1. **Pas** : chaque pas rapporte des points de ⚡ Vitesse = valeur du pas × multiplicateurs
+   (évolution × équipement × pass × Turbo). Le serveur compte les pas (1 pas / 4 studs, 8 pas/s max).
+2. **Améliorations de pas** (rangée du lobby, achetées dans l'ordre en 🏆) : +1 → +2 000 par pas.
+3. **Tapis** : pas automatiques (2 à 10/s) sans bouger, débloqués par le total de victoires.
+4. **Niveau** : barre remplie par la Vitesse (10 × 1,18^(n-1) points par niveau).
+5. **Vitesse de course** = 16 + Vitesse^0,6 (plafond 1 500), limiteur 100/50/25/10 % (touche L).
+6. **Mondes en 10 étapes** : barrière « ⚡ vitesse requise » à l'entrée de chaque étape, obstacles de
+   plus en plus durs (créatures qui patrouillent, îlots sur la lave, vides, murs, haies, poutres,
+   boulet qui roule dès l'étape 3), **victoires à la fin de chaque étape**, réapparition à l'étape.
+7. **Évolution** (bouton 🧬) : niveau requis + victoires payées → forme suivante (×1,1 → ×8).
+8. **Équipement** : traînées, capes, auras (multiplicateurs multipliés, jusqu'à ×75).
 
-## Mondes (Config/Worlds.luau)
-| Monde | Débloqué à (total 🏆) | Longueur | Arrivée |
+## Étapes (Config/Worlds.luau)
+| Monde | Débloqué (total 🏆) | 🏆 étape 1 → 10 | ⚡ requise étape 2 → 10 |
 |---|---|---|---|
-| Prairie | 0 | 600 | +5 |
-| Désert | 100 | 1 000 | +20 |
-| Royaume de glace (sol glissant) | 1 000 | 1 500 | +80 |
-| Volcan | 8 000 | 2 200 | +300 |
-| Espace | 50 000 | 3 000 | +1 200 |
+| Prairie | 0 | 1 → 20 (64 au total) | 10 → 1 101 |
+| Désert | 100 | 8 → 165 | 1 500 → 64 K |
+| Glace | 1 000 | 60 → 1 239 | 80 K → 2 M |
+| Volcan | 8 000 | 400 → 8 264 | 3 M → 77 M |
+| Espace | 50 000 | 2 500 → 51 652 | 100 M → 2,5 B |
 
-## Équipement (Config/Equipment.luau)
-| Emplacement | Pièces (prix 🏆 → multiplicateur) |
-|---|---|
-| ✨ Traînées | bleue 15 → ×1,25 · feu 60 → ×1,5 · arc-en-ciel 250 → ×2 · éclair 3 000 → ×3 |
-| 🦸 Capes | rouge 40 → ×1,5 · bleue 150 → ×2 · or 1 500 → ×3 · cosmique 15 000 → ×5 |
-| 🌟 Auras | étoilée 300 → ×2 · feu 5 000 → ×3 · cosmique 40 000 → ×5 |
-
-Multiplicateur maximal d'équipement : 3 × 5 × 5 = **×75**.
+## Évolutions (Config/Evolutions.luau)
+Débutant ×1 · Sprinteur ×1,1 (niv. 5, 5 🏆) · Fusée ×1,25 (niv. 12, 30) · Éclair ×1,5 (niv. 20, 150) ·
+Comète ×2 (niv. 30, 800) · Météore ×3 (niv. 45, 5 K) · Supernova ×5 (niv. 65, 40 K) · Légende cosmique ×8 (niv. 90, 300 K).
 
 ## Anti-triche
-Le serveur suit la position des joueurs : points de contrôle obligatoires dans l'ordre, déplacements
-invraisemblables ignorés (téléportation), victoires et gains calculés côté serveur.
+Pas comptés par le serveur ; étapes dans l'ordre ; barrière franchie sans la vitesse requise = retour ;
+téléportations ignorées ; victoires, achats et évolutions validés côté serveur.
 
-## Monétisation (Config/Monetization.luau, Id à créer après publication)
-Passes **Vitesse ×2** et **Victoires ×2** ; produits **Turbo ×3 (10 min)**, **+100 🏆**, **+1 000 🏆**.
-
-## Suite possible
-**Renaissance** (remise à zéro de la Vitesse contre un multiplicateur permanent), mondes 6+,
-compagnons (pets) avec multiplicateurs, classement des records par monde, obstacles mobiles.
+## À venir (repéré chez la concurrence)
+Renaissance, événement de course à heure fixe, packs de Vitesse en Robux en bas de l'écran et
+pack de démarrage limité, codes, cadeaux de temps de jeu, index/collection.

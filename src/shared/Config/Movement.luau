@@ -1,18 +1,17 @@
 --!strict
--- « +1 Vitesse » : chaque seconde de course rapporte de la Vitesse (× multiplicateurs),
--- et la Vitesse EST la vitesse de course : vitesse de marche = 16 + Vitesse (plafonnée).
+-- Vitesse de course : elle augmente avec la Vitesse accumulée (plus doucement que la Vitesse elle-même
+-- pour rester jouable), plafonnée. Le limiteur permet de ralentir pour les sauts délicats.
 
 local BASE_WALK_SPEED = 16
 local MAX_WALK_SPEED = 1500
+local SPEED_EXPONENT = 0.6
 
 local function walkSpeedFor(speed: number): number
-	return math.min(MAX_WALK_SPEED, BASE_WALK_SPEED + math.max(speed, 0))
+	return math.min(MAX_WALK_SPEED, BASE_WALK_SPEED + math.max(speed, 0) ^ SPEED_EXPONENT)
 end
 
 return {
 	WalkSpeedFor = walkSpeedFor,
-	-- Vitesse gagnée par seconde de course (avant multiplicateurs).
-	RunGainPerSecond = 1,
 	-- Vitesse horizontale minimale (studs/s) pour compter comme « en train de courir ».
 	MinMovingSpeed = 4,
 	-- Limiteur de vitesse (fractions proposées au joueur, clic pour changer).

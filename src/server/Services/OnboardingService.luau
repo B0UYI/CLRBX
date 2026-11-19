@@ -14,7 +14,7 @@ local OnboardingService = {}
 local STEPS = {
 	"Courir",
 	"Entrer dans la Prairie",
-	"Atteindre l'arrivée",
+	"Terminer l'étape 1",
 	"Acheter un équipement",
 }
 
@@ -22,7 +22,7 @@ local STEPS = {
 local NEXT_STEP: { [string]: number } = {
 	Ran = 2,
 	EnteredWorld = 3,
-	Finished = 4,
+	StageCleared = 4,
 	Bought = 5,
 }
 
