@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
@@ -31,6 +32,10 @@ local bank = 0
 local lastHeading: Vector3? = nil
 -- Bonus des barrières de vent (mur du son) jusqu'à cet instant (os.clock()).
 local windBoostUntil = 0
+-- Le mur du son se déclenche une fois par boost, quand on atteint la vitesse max.
+local boomReady = true
+local justTookOff = false
+local handTrails: { Trail } = {}
 
 local function characterParts(): (Humanoid?, BasePart?)
 	local character = player.Character
@@ -43,6 +48,10 @@ local function characterParts(): (Humanoid?, BasePart?)
 end
 
 local function stopRig()
+	for _, trail in handTrails do
+		trail:Destroy()
+	end
+	table.clear(handTrails)
 	if rig then
 		rig.Velocity:Destroy()
 		rig.Align:Destroy()
@@ -54,6 +63,26 @@ local function stopRig()
 		humanoid.PlatformStand = false
 		humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 	end
+end
+
+local function shockwave(position: Vector3, direction: Vector3, color: Color3, finalSize: number)
+	local ring = Instance.new("Part")
+	ring.Name = "OndeDeChoc"
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanQuery = false
+	ring.CanTouch = false
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Material = Enum.Material.ForceField
+	ring.Color = color
+	ring.Size = Vector3.new(0.6, 4, 4)
+	ring.CFrame = CFrame.lookAt(position, position + direction) * CFrame.Angles(0, math.pi / 2, 0)
+	ring.Parent = workspace.CurrentCamera
+	TweenService:Create(ring, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.6, finalSize, finalSize),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(ring, 0.5)
 end
 
 local function startRig(humanoid: Humanoid, root: BasePart): Rig
@@ -84,6 +113,39 @@ local function startRig(humanoid: Humanoid, root: BasePart): Rig
 	-- PlatformStand : le personnage ne marche plus et ses animations s'arrêtent (pose figée).
 	humanoid.PlatformStand = true
 	currentVelocity = root.AssemblyLinearVelocity
+	-- Traînées d'air au bout des mains (vues par ce joueur).
+	table.clear(handTrails)
+	local character = root.Parent
+	for _, handName in { "RightHand", "LeftHand" } do
+		local hand = character and character:FindFirstChild(handName)
+		if hand and hand:IsA("BasePart") then
+			local a0 = Instance.new("Attachment")
+			a0.Name = "VolTraineeA"
+			a0.Position = Vector3.new(0, 0.3, 0)
+			a0.Parent = hand
+			local a1 = Instance.new("Attachment")
+			a1.Name = "VolTraineeB"
+			a1.Position = Vector3.new(0, -0.3, 0)
+			a1.Parent = hand
+			local trail = Instance.new("Trail")
+			trail.Name = "VolTrainee"
+			trail.Attachment0 = a0
+			trail.Attachment1 = a1
+			trail.Lifetime = 0.35
+			trail.LightEmission = 0.8
+			trail.Transparency = NumberSequence.new(0.3, 1)
+			trail.Color = ColorSequence.new(Color3.fromRGB(220, 245, 255))
+			trail.Enabled = false
+			trail.Parent = hand
+			table.insert(handTrails, trail)
+		end
+	end
+	if justTookOff then
+		-- Décollage : élan vers le haut + onde de poussière au sol.
+		justTookOff = false
+		currentVelocity = Vector3.yAxis * 45 + currentVelocity
+		shockwave(root.Position - Vector3.new(0, 3, 0), Vector3.yAxis, Color3.fromRGB(230, 220, 200), 22)
+	end
 	local newRig = { Root = root, Attachment = attachment, Velocity = velocity, Align = align }
 	rig = newRig
 	return newRig
@@ -107,6 +169,10 @@ end
 
 local function setWantsToFly(value: boolean)
 	wantsToFly = value
+	if value then
+		justTookOff = true
+		boomReady = true
+	end
 	local remote = ReplicatedStorage:FindFirstChild("Remotes")
 	local setFlying = remote and remote:FindFirstChild("SetFlying")
 	if setFlying and setFlying:IsA("RemoteEvent") then
@@ -169,27 +235,17 @@ local function setBoost(value: boolean)
 end
 
 -- Mur du son : onde de choc, son, et bonus de vitesse temporaire.
-local function sonicBoom(root: BasePart)
-	windBoostUntil = os.clock() + Flight.WindBoostSeconds
+
+local fovKick = 0
+
+local function sonicBoom(root: BasePart, giveBoost: boolean)
+	if giveBoost then
+		windBoostUntil = os.clock() + Flight.WindBoostSeconds
+	end
+	fovKick = 14
 	local direction = if currentVelocity.Magnitude > 1 then currentVelocity.Unit else root.CFrame.LookVector
-	local ring = Instance.new("Part")
-	ring.Name = "OndeDeChoc"
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Material = Enum.Material.ForceField
-	ring.Color = Color3.fromRGB(200, 240, 255)
-	ring.Size = Vector3.new(0.6, 6, 6)
-	-- L'axe d'un cylindre est X : on l'aligne sur la direction du vol.
-	ring.CFrame = CFrame.lookAt(root.Position, root.Position + direction) * CFrame.Angles(0, math.pi / 2, 0)
-	ring.Parent = workspace.CurrentCamera
-	TweenService:Create(ring, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.new(0.6, 45, 45),
-		Transparency = 1,
-	}):Play()
-	Debris:AddItem(ring, 0.6)
+	shockwave(root.Position, direction, Color3.fromRGB(200, 240, 255), 50)
+	task.delay(0.08, shockwave, root.Position - direction * 6, direction, Color3.new(1, 1, 1), 30)
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxasset://sounds/swoosh.wav"
 	sound.Volume = 1
@@ -216,6 +272,16 @@ local function stepFree(humanoid: Humanoid, root: BasePart, dt: number)
 		currentVelocity *= math.exp(-Flight.GlideDrag * dt)
 	end
 	current.Velocity.VectorVelocity = currentVelocity
+	local boosting = player:GetAttribute("Boosting") == true
+	if boosting and boomReady and currentVelocity.Magnitude >= speed * 0.95 then
+		boomReady = false
+		sonicBoom(root, false)
+	elseif not boosting then
+		boomReady = true
+	end
+	for _, trail in handTrails do
+		trail.Enabled = currentVelocity.Magnitude > 60
+	end
 
 	-- Inclinaison dans les virages, selon la vitesse de rotation du cap.
 	local flat = Vector3.new(currentVelocity.X, 0, currentVelocity.Z)
@@ -353,6 +419,21 @@ function FlightController:Start()
 		trackWind(descendant)
 	end
 
+	local blur = Instance.new("BlurEffect")
+	blur.Name = "VolFlou"
+	blur.Size = 0
+	blur.Parent = Lighting
+	local grading = Instance.new("ColorCorrectionEffect")
+	grading.Name = "VolCouleur"
+	grading.Parent = Lighting
+	local windSound = Instance.new("Sound")
+	windSound.Name = "VentDeVol"
+	windSound.SoundId = "rbxasset://sounds/swoosh.wav"
+	windSound.Looped = true
+	windSound.Volume = 0
+	windSound.Parent = gui
+	windSound:Play()
+
 	local shakeTime = 0
 	RunService:BindToRenderStep("VolCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 		local camera = workspace.CurrentCamera
@@ -362,8 +443,19 @@ function FlightController:Start()
 		streaks.Parent = camera
 		local speed = if rig then currentVelocity.Magnitude else 0
 		local ratio = math.clamp(speed / Flight.FovSpeedForMax, 0, 1)
-		local targetFov = Flight.BaseFov + (Flight.MaxFov - Flight.BaseFov) * ratio
-		camera.FieldOfView += (targetFov - camera.FieldOfView) * math.min(1, dt * 4)
+		fovKick = math.max(0, fovKick - dt * 30)
+		local boostingNow = player:GetAttribute("Boosting") == true and rig ~= nil
+		local targetFov = Flight.BaseFov + (Flight.MaxFov - Flight.BaseFov) * ratio + fovKick
+		camera.FieldOfView += (targetFov - camera.FieldOfView) * math.min(1, dt * 5)
+		-- Roulis de la caméra avec les virages : on « sent » l'inclinaison.
+		if rig then
+			camera.CFrame *= CFrame.Angles(0, 0, bank * 0.3)
+		end
+		blur.Size += ((if boostingNow then 3 + ratio * 3 else 0) - blur.Size) * math.min(1, dt * 6)
+		grading.Saturation = 0.25 * ratio
+		grading.Contrast = 0.1 * ratio
+		windSound.Volume = 0.7 * ratio
+		windSound.PlaybackSpeed = 0.6 + ratio * 0.8
 		streaks.CFrame = camera.CFrame * CFrame.new(0, 0, -28)
 		emitter.Rate = if speed > 60 then math.min(160, (speed - 60) * 0.8) else 0
 		if speed > Flight.ShakeFromSpeed then
@@ -386,7 +478,7 @@ function FlightController:Start()
 					if previous and math.sign(previous) ~= math.sign(side) and type(radius) == "number" then
 						local lateral = offset - wind.CFrame.RightVector * side
 						if lateral.Magnitude <= radius then
-							sonicBoom(windRoot)
+							sonicBoom(windRoot, true)
 						end
 					end
 				end

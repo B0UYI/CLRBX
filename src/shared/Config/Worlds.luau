@@ -18,6 +18,8 @@ export type World = {
 	ReferenceFlySpeed: number,
 	-- Atmosphère : multiplicateur de consommation d'endurance dans ce monde.
 	StaminaDrain: number,
+	-- Barrières de vent (mur du son + élan) : mécanique réservée à de futurs mondes.
+	WindRings: boolean?,
 	-- Victoires de l'étape 1.
 	StageWins: number,
 	-- Difficulté de l'étape 1 (0 à 1) ; elle monte de +0,3 jusqu'à l'étape 10.

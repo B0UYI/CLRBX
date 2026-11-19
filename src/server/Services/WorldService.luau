@@ -15,6 +15,7 @@ local Flight = require(Shared.Config.Flight)
 local Movement = require(Shared.Config.Movement)
 local Worlds = require(Shared.Config.Worlds)
 local Format = require(Shared.Util.Format)
+local Biomes = require(script.Parent.Parent.Util.Biomes)
 local Cooldown = require(script.Parent.Parent.Util.Cooldown)
 local Remotes = require(script.Parent.Parent.Util.Remotes)
 local DailyService = require(script.Parent.DailyService)
@@ -147,7 +148,7 @@ function WorldService.RespawnAtCheckpoint(player: Player)
 	placeAt(player, spawnPoint(current.World, current.Checkpoint))
 end
 
-local flames: { { Part: BasePart, Phase: number, Period: number } } = {}
+local flames: { { Part: BasePart, Phase: number, Period: number, Fire: ParticleEmitter } } = {}
 
 local function lethal(hazard: BasePart)
 	hazard:SetAttribute("Mortel", true)
@@ -174,7 +175,9 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 	local function at(x: number, y: number, z: number): Vector3
 		return start + Vector3.new(x, y, z)
 	end
+	local rockColor, rockMaterial = Biomes.Rock(def.Biome)
 	local function pad(x: number, name: string): Part
+		Biomes.Underside(model, at(x + PAD_SIZE / 2, -PAD_THICKNESS, 0), PAD_SIZE, rockColor, rockMaterial)
 		local p = part(model, {
 			Name = name,
 			Size = Vector3.new(PAD_SIZE, PAD_THICKNESS, PAD_SIZE),
@@ -235,8 +238,10 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 				Transparency = 0.1,
 			})
 		end
-		for rx = x0 + 40, x0 + length - 30, 60 do
-			wind(at(rx, random:NextNumber(-10, 10), random:NextNumber(-15, 15)), 10)
+		if def.WindRings then
+			for rx = x0 + 40, x0 + length - 30, 60 do
+				wind(at(rx, random:NextNumber(-10, 10), random:NextNumber(-15, 15)), 10)
+			end
 		end
 	end
 
@@ -259,6 +264,24 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 						Position = at(rx, -80 + top / 2, center),
 						Color = Color3.new(shade, shade, shade + 0.05),
 						Material = Enum.Material.Concrete,
+					})
+					part(model, {
+						Name = "Toit",
+						Size = Vector3.new(13, 1.5, width + 1),
+						Position = at(rx, top + 0.75, center),
+						Color = Color3.new(shade * 0.7, shade * 0.7, shade * 0.75),
+						Material = Enum.Material.Metal,
+					})
+					-- Colonne de fenêtres éclairées, face aux joueurs qui arrivent.
+					part(model, {
+						Name = "Fenetres",
+						Size = Vector3.new(0.4, 160 + top - 6, width * 0.6),
+						Position = at(rx - 6.1, -80 + top / 2, center),
+						Color = Color3.fromRGB(255, 225, 150),
+						Material = Enum.Material.Neon,
+						Transparency = 0.35,
+						CanCollide = false,
+						CanQuery = false,
 					})
 				end
 				z += width + 1
@@ -294,6 +317,24 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 					Vector3.new(0, hy, (hz + hole / 2 + HALF_WIDTH + 20) / 2),
 				},
 			}
+			for _, edge in
+				{
+					{ Vector3.new(0.6, 0.8, hole + 0.8), Vector3.new(-1.2, hy + hole / 2, hz) },
+					{ Vector3.new(0.6, 0.8, hole + 0.8), Vector3.new(-1.2, hy - hole / 2, hz) },
+					{ Vector3.new(0.6, hole, 0.8), Vector3.new(-1.2, hy, hz + hole / 2) },
+					{ Vector3.new(0.6, hole, 0.8), Vector3.new(-1.2, hy, hz - hole / 2) },
+				}
+			do
+				part(model, {
+					Name = "CadreOuverture",
+					Size = edge[1],
+					Position = at(rx, 0, 0) + edge[2],
+					Color = Color3.fromRGB(120, 240, 255),
+					Material = Enum.Material.Neon,
+					CanCollide = false,
+					CanQuery = false,
+				})
+			end
 			for _, piece in pieces do
 				local wall = part(model, {
 					Name = "MurDeGlace",
@@ -324,7 +365,26 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 				Transparency = 0.25,
 			})
 			lethal(flame)
-			table.insert(flames, { Part = flame, Phase = (fx - x0) / waveSpeed, Period = period })
+			local fire = Instance.new("ParticleEmitter")
+			fire.Shape = Enum.ParticleEmitterShape.Box
+			fire.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+			fire.Rate = 60
+			fire.Lifetime = NumberRange.new(0.4, 0.8)
+			fire.Speed = NumberRange.new(4, 10)
+			fire.Size = NumberSequence.new(3, 0)
+			fire.LightEmission = 1
+			fire.Color = ColorSequence.new(Color3.fromRGB(255, 220, 80), Color3.fromRGB(255, 60, 10))
+			fire.Parent = flame
+			for _, sign in { -1, 1 } do
+				part(model, {
+					Name = "Buse",
+					Size = Vector3.new(6, 4, CORRIDOR_WIDTH + 24),
+					Position = at(fx, sign * (CORRIDOR_HEIGHT / 2 + 12), 0),
+					Color = Color3.fromRGB(50, 40, 40),
+					Material = Enum.Material.Basalt,
+				})
+			end
+			table.insert(flames, { Part = flame, Phase = (fx - x0) / waveSpeed, Period = period, Fire = fire })
 		end
 		for _ = 1, math.floor(length / 30) do
 			local size = random:NextNumber(8, 20)
@@ -414,8 +474,9 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 		local info =
 			`Étape {stage} · {length} m de vol\n🔋 Endurance conseillée : {needed} s\nNiveau conseillé : {level}`
 		billboard(sign, info, Color3.fromRGB(255, 240, 120), 0, 300)
-		-- Une barrière de vent à l'entrée de chaque étape pour prendre de l'élan.
-		wind(at(x + 10, 4, 0), 12)
+		if def.WindRings then
+			wind(at(x + 10, 4, 0), 12)
+		end
 		buildBiome(x, length, difficulty)
 		x += length
 
@@ -450,6 +511,7 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 		})
 	end
 	billboard(arch, "🏆 ARRIVÉE FINALE", GOLD, 4, 400)
+	Biomes.Decorate(model, def.Biome, start, x, index * 31)
 
 	model.Parent = parent
 	return { Def = def, Index = index, Start = start, EndX = endX }
@@ -727,7 +789,8 @@ function WorldService:Start()
 				if flame.Part:GetAttribute("Active") ~= active then
 					flame.Part:SetAttribute("Active", active)
 					flame.Part.Color = if active then FLAME_ON else FLAME_OFF
-					flame.Part.Transparency = if active then 0.25 else 0.85
+					flame.Part.Transparency = if active then 0.4 else 0.92
+					flame.Fire.Enabled = active
 				end
 			end
 		end

@@ -1,7 +1,7 @@
 --!strict
 -- Pas : le serveur compte les pas (à pied ou en vol) à partir de la vitesse horizontale réelle
 -- (un pas tous les Steps.Stride studs, au plus Steps.MaxStepsPerSecond par seconde).
--- La vitesse de course elle-même est réglée côté client (limiteur) à partir de « MaxWalkSpeed ».
+-- La vitesse à pied est fixe ; seuls les pas (et le vol) font progresser.
 
 local Players = game:GetService("Players")
 

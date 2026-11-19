@@ -177,8 +177,6 @@ function HudController:Start()
 				break
 			end
 		end
-		local limiter = number(player:GetAttribute("Limiter"), 1)
-		local walk = math.floor(number(player:GetAttribute("MaxWalkSpeed"), 16) * limiter)
 		lines[1].Text = `🏆 Victoires : {Format.Number(number(player:GetAttribute("Wins"), 0))}`
 		local stepValue = Format.Number(number(player:GetAttribute("StepValue"), 1))
 		local perSecond = Format.Number(number(player:GetAttribute("SpeedPerSecond"), 0))
@@ -186,7 +184,7 @@ function HudController:Start()
 		lines[3].Text = `🧬 Forme : {Evolutions.Forms[formIndex].Name}`
 		local fly = math.floor(number(player:GetAttribute("FlySpeed"), 40))
 		local boost = math.floor(fly * Flight.BoostMultiplier)
-		lines[4].Text = `✈️ Vol : {fly} (🚀 {boost}) · 🏃 {Format.Number(walk)}`
+		lines[4].Text = `✈️ Vol : {fly}  ·  🚀 Boost : {boost}`
 		lines[5].Text = if nextWorld
 			then `🔓 {nextWorld.Name} : {Format.Number(nextWorld.RequiredWins)} 🏆 au total`
 			else "🌟 Tous les mondes débloqués !"

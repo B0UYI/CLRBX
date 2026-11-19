@@ -22,7 +22,21 @@
 - [ ] Posture : bras droit tendu, bras gauche le long du corps, genou gauche plié (vu aussi par un 2e joueur).
 - [ ] En virage, le corps s'incline ; sans commande, on plane sur sa lancée.
 - [ ] Plus on va vite, plus le champ de vision s'élargit ; lignes de vitesse ; légère vibration à très haute vitesse.
-- [ ] Disques de vent (ciel du lobby, entrée de chaque étape, Ciel) : les traverser = onde de choc + son + accélération 2 s.
+- [ ] Plus de disques de vent systématiques (mécanique gardée en réserve, désactivée : `WindRings` dans Config/Worlds).
+- [ ] Décollage : petite poussée vers le haut + onde de choc au sol.
+- [ ] Boost à vitesse max : « mur du son » (double onde + son), une fois par boost.
+- [ ] Caméra qui s'incline dans les virages, flou de vitesse, couleurs plus vives, son de vent qui monte avec la vitesse.
+- [ ] Traînées lumineuses aux mains au-delà d'une certaine vitesse.
+- [ ] À pied : vitesse de marche normale (16), jamais modifiée par la Vitesse.
+
+## Biomes et décors (v3)
+- [ ] Dessous rocheux sous chaque plateforme flottante.
+- [ ] Ciel : mer de nuages, îles herbeuses flottantes avec arbres et cascades.
+- [ ] Ville : sol, avenues, tours avec fenêtres éclairées, antennes à feu rouge, enseignes néon.
+- [ ] Glacier : banquise, icebergs, cristaux, neige ; cadres néon autour des ouvertures.
+- [ ] Volcan : mer de lave, volcans fumants, aiguilles de basalte, braises ; buses et vraies flammes.
+- [ ] Espace : étoiles, planètes (une avec anneau), nébuleuses, stations.
+- [ ] Indique-moi si ça rame (images/seconde) dans un monde précis.
 - [ ] Textes (étapes, achats, tapis, portails) : petits de loin, lisibles de près, ne bouchent plus l'écran.
 - [ ] Si l'inclinaison part du mauvais côté dans les virages, dis-le-moi (un signe à inverser).
 
