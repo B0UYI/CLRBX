@@ -9,19 +9,20 @@ local Players = game:GetService("Players")
 local ProfileStore = require(script.Parent.Parent.Packages.ProfileStore) :: any
 
 export type PlayerData = {
-	-- Stat de progression : plus elle est haute, plus on vole vite (lobby et course).
+	-- Stat de progression (+1 par seconde de course) : vitesse de course = 16 + Vitesse.
 	Speed: number,
-	-- Victoires disponibles (monnaie des capes) et total gagné depuis le début (débloque les tapis).
+	-- Victoires disponibles (monnaie de l'équipement) et total gagné depuis le début (débloque mondes et tapis).
 	Wins: number,
 	TotalWins: number,
-	-- Capes possédées : [capeId] = true
-	Capes: { [string]: boolean },
-	Races: number,
-	BestDistance: number,
+	-- Équipement possédé : [itemId] = true
+	Equipment: { [string]: boolean },
+	Finishes: number,
+	-- Meilleur temps (secondes) par monde : [worldId] = temps
+	BestTimes: { [string]: number },
 	-- Fin du Turbo acheté (os.time()).
 	BoostUntil: number,
 	-- Cadeau de connexion et défi du jour (Day = numéro du jour UTC).
-	Daily: { Day: number, Streak: number, Races: number, GoalClaimed: boolean },
+	Daily: { Day: number, Streak: number, Finishes: number, GoalClaimed: boolean },
 	-- Derniers achats Robux traités (anti double-attribution).
 	PurchaseIds: { string },
 	-- Guide des nouveaux joueurs terminé.
@@ -32,18 +33,18 @@ local TEMPLATE: PlayerData = {
 	Speed = 0,
 	Wins = 0,
 	TotalWins = 0,
-	Capes = {},
-	Races = 0,
-	BestDistance = 0,
+	Equipment = {},
+	Finishes = 0,
+	BestTimes = {},
 	BoostUntil = 0,
-	Daily = { Day = 0, Streak = 0, Races = 0, GoalClaimed = false },
+	Daily = { Day = 0, Streak = 0, Finishes = 0, GoalClaimed = false },
 	PurchaseIds = {},
 	Onboarded = false,
 }
 
 local DataService = {}
 
-local store = ProfileStore.New("CourseCeleste_v1", TEMPLATE)
+local store = ProfileStore.New("ObbyTurbo_v1", TEMPLATE)
 local profiles: { [Player]: any } = {}
 local loading: { [Player]: boolean } = {}
 local loadedCallbacks: { (Player, PlayerData) -> () } = {}

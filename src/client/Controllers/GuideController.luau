@@ -1,10 +1,9 @@
 --!strict
 -- Guide visuel des nouveaux joueurs : consigne en bas de l'écran + rayon lumineux
--- du personnage vers la prochaine cible (tapis, orbe, tableau de course, cape).
+-- du personnage vers la prochaine cible (portail, arrivée, équipement).
 -- Tout est local à ce joueur ; l'étape vient de l'attribut « GuideStep » posé par le serveur.
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GuideController = {}
 
@@ -17,51 +16,24 @@ local function partOf(instance: Instance?): BasePart?
 	return nil
 end
 
-local function nearestOrb(lobby: Instance, from: Vector3): BasePart?
-	local orbs = lobby:FindFirstChild("Orbes")
-	local best: BasePart? = nil
-	local bestDistance = math.huge
-	if orbs then
-		for _, orb in orbs:GetChildren() do
-			if orb:IsA("BasePart") and orb:GetAttribute("Active") == true then
-				local distance = (orb.Position - from).Magnitude
-				if distance < bestDistance then
-					best = orb
-					bestDistance = distance
-				end
-			end
-		end
-	end
-	return best
-end
-
-local function raceCountdown(): string
-	local state = ReplicatedStorage:FindFirstChild("GameState")
-	local endsAt = state and state:GetAttribute("PhaseEndsAt")
-	if state and state:GetAttribute("RacePhase") == "Intermission" and type(endsAt) == "number" then
-		local seconds = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
-		return ` (dans {seconds} s)`
-	end
-	return ""
-end
-
 -- Renvoie la cible et la consigne pour l'étape.
-local function guide(step: number, lobby: Instance, root: BasePart): (BasePart?, string)
+local function guide(step: number, lobby: Instance, _root: BasePart): (BasePart?, string)
 	if step == 1 then
-		local treadmills = lobby:FindFirstChild("Tapis")
-		return partOf(treadmills and treadmills:FindFirstChild("Tapis_bois")),
-			"1/5 · Monte sur le tapis de bois : tu gagnes de la vitesse ⚡"
+		return nil, "1/4 · Cours ! Chaque seconde de course = +1 ⚡ Vitesse"
 	elseif step == 2 then
-		return nil, "2/5 · Envole-toi : touche F ou bouton ✈️, puis avance !"
+		local portals = lobby:FindFirstChild("Portails")
+		return partOf(portals and portals:FindFirstChild("Portail_prairie")),
+			"2/4 · Entre dans le portail Prairie 🌍"
 	elseif step == 3 then
-		return nearestOrb(lobby, root.Position), "3/5 · Attrape une orbe bleue en volant"
-	elseif step == 4 then
-		return partOf(lobby:FindFirstChild("TableauCourse")),
-			`4/5 · La course arrive{raceCountdown()} : tu y seras envoyé 🏁`
+		local worldId = player:GetAttribute("World")
+		local worlds = workspace:FindFirstChild("Mondes")
+		local world = if worlds and type(worldId) == "string" then worlds:FindFirstChild(worldId) else nil
+		return partOf(world and world:FindFirstChild("Arrivee")),
+			"3/4 · Fonce jusqu'à l'arrivée 🏆 (évite la lave et le vide)"
 	end
-	local capes = lobby:FindFirstChild("Capes")
-	return partOf(capes and capes:FindFirstChild("Cape_rouge")),
-		"5/5 · Achète la Cape rouge (25 🏆) pour voler plus vite"
+	local shop = lobby:FindFirstChild("Equipement")
+	return partOf(shop and shop:FindFirstChild("Equip_trail_bleue")),
+		"4/4 · Achète ta première traînée (15 🏆) : vitesse ×1,25"
 end
 
 function GuideController:Start()

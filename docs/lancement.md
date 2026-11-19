@@ -1,17 +1,17 @@
 # Checklist de lancement (test 16+ de la semaine 4)
 
 ## 0. Avant de publier
-- [ ] Toute la checklist `docs/test-vol.md` passe, **aucun message rouge** dans la Sortie.
-- [ ] Test à 2 joueurs (Test → Clients et serveurs → 2) : vol, course à deux lignes, capes.
+- [ ] Toute la checklist `docs/test-obby.md` passe, **aucun message rouge** dans la Sortie.
+- [ ] Test à 2 joueurs (Test → Clients et serveurs → 2) : parcours à deux, équipement visible chez l'autre.
 
 ## 1. Publier
 - Studio : **Fichier → Publier sur Roblox** → nouvelle expérience.
-- Nom : **Course Céleste ✈️** (provisoire) · Genre : course / simulation · Appareils : tous (téléphone en priorité).
+- Nom : **Obby Turbo ⚡ +1 Vitesse** (provisoire) · Genre : obby / simulation · Appareils : tous (téléphone en priorité).
 - Description (brouillon) :
-  - FR : « Vole comme un super-héros ! Gagne de la vitesse, attrape les orbes, fonce dans la course du ciel
-    et débloque des capes de plus en plus puissantes. Jusqu'où iras-tu ? »
-  - EN : "Fly like a superhero! Build up speed, grab orbs, race through the sky and unlock
-    more and more powerful capes. How far can you fly?"
+  - FR : « Chaque seconde de course te rend plus rapide ! Traverse les parcours d'obstacles, gagne des
+    victoires, débloque de nouveaux mondes et équipe-toi de traînées, capes et auras. Jusqu'où iras-tu ? »
+  - EN : "Every second you run makes you faster! Race through obstacle courses, earn wins, unlock new
+    worlds and gear up with trails, capes and auras. How far can you go?"
 
 ## 2. Réglages du jeu (Studio → Paramètres du jeu)
 - **Sécurité** → activer *l'accès de Studio aux services API* (pour tester la vraie sauvegarde).
@@ -25,13 +25,13 @@
 - Plus tard, si le jeu marche : passer la langue source en anglais pour une meilleure qualité.
 
 ## 4. Public et maturité
-- Remplir le **questionnaire de maturité** : vol et course, pas de violence ni de sang,
+- Remplir le **questionnaire de maturité** : course d'obstacles, pas de violence ni de sang,
   pas d'objet aléatoire payant → classement attendu *Minimal* ou *Mild*.
 - Lancer d'abord **visible pour les 16+** (possible tout de suite), puis demander l'**examen tous âges**
   (vérification d'identité + 2FA + frais ou abonnement) une fois les premiers chiffres bons.
 
 ## 5. Visuels
-- Icône + 3 à 5 miniatures **à partir de vraies captures** (vol bras tendu, course, capes).
+- Icône + 3 à 5 miniatures **à partir de vraies captures** (course à pleine vitesse, mondes, équipement).
 
 ## 6. Test publicitaire
 - Ads Manager : 100 à 200 $ sur 3 à 5 jours, objectif « parties jouées ».

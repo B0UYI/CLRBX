@@ -1,8 +1,9 @@
-# CLRBX — Course Céleste
+# CLRBX — Obby Turbo
 
-Jeu Roblox de course en vol façon super-héros (concept : `docs/concept-course-celeste.md`, test : `docs/test-vol.md`).
+Jeu Roblox du genre « +1 Vitesse » : parcours d'obstacles, mondes à débloquer, équipement multiplicateur
+(concept : `docs/concept-obby-turbo.md`, test : `docs/test-obby.md`).
 Code Luau géré avec [Rojo](https://rojo.space) et synchronisé dans Roblox Studio.
-L'ancien concept (Potion Panique) est archivé dans la branche `archive/potion-panique-v8`.
+Anciens concepts archivés dans les branches `archive/potion-panique-v8` et `archive/course-celeste-v1`.
 
 ## Installation (Windows, une seule fois)
 

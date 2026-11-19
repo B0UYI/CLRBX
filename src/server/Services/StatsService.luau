@@ -6,9 +6,9 @@
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Capes = require(Shared.Config.Capes)
-local Flight = require(Shared.Config.Flight)
+local Equipment = require(Shared.Config.Equipment)
 local Gameplay = require(Shared.Config.Gameplay)
+local Movement = require(Shared.Config.Movement)
 local Format = require(Shared.Util.Format)
 local Analytics = require(script.Parent.Parent.Util.Analytics)
 local DataService = require(script.Parent.DataService)
@@ -26,22 +26,35 @@ local function setLeaderstat(player: Player, name: string, text: string)
 	end
 end
 
-function StatsService.CapeMultiplier(player: Player): number
+-- Meilleure pièce possédée pour un emplacement (ou nil).
+function StatsService.BestInSlot(player: Player, slot: string): Equipment.Item?
 	local data = DataService.Get(player)
-	local best = 1
+	local best: Equipment.Item? = nil
 	if data then
-		for _, cape in Capes.List do
-			if data.Capes[cape.Id] and cape.Multiplier > best then
-				best = cape.Multiplier
+		for _, item in Equipment.List do
+			if item.Slot == slot and data.Equipment[item.Id] and (not best or item.Multiplier > best.Multiplier) then
+				best = item
 			end
 		end
 	end
 	return best
 end
 
--- Multiplicateur total des gains de Vitesse : cape × pass Vitesse ×2 × Turbo.
+-- Produit des multiplicateurs de la meilleure pièce de chaque emplacement.
+function StatsService.EquipmentMultiplier(player: Player): number
+	local multiplier = 1
+	for _, slot in Equipment.Slots do
+		local best = StatsService.BestInSlot(player, slot.Slot)
+		if best then
+			multiplier *= best.Multiplier
+		end
+	end
+	return multiplier
+end
+
+-- Multiplicateur total des gains de Vitesse : équipement × pass Vitesse ×2 × Turbo.
 function StatsService.Multiplier(player: Player): number
-	local multiplier = StatsService.CapeMultiplier(player)
+	local multiplier = StatsService.EquipmentMultiplier(player)
 	if player:GetAttribute("Pass_SpeedX2") == true then
 		multiplier *= 2
 	end
@@ -52,7 +65,7 @@ function StatsService.Multiplier(player: Player): number
 	return multiplier
 end
 
--- Republie stats, multiplicateur et vitesse de vol (après un achat, un gain, etc.).
+-- Republie stats, multiplicateur et vitesse de course (après un achat, un gain, etc.).
 function StatsService.Sync(player: Player)
 	local data = DataService.Get(player)
 	if not data then
@@ -62,7 +75,8 @@ function StatsService.Sync(player: Player)
 	player:SetAttribute("Wins", data.Wins)
 	player:SetAttribute("TotalWins", data.TotalWins)
 	player:SetAttribute("Multiplier", StatsService.Multiplier(player))
-	player:SetAttribute("FlySpeed", math.floor(Flight.LobbySpeedFor(data.Speed)))
+	-- Le client règle sa vitesse de marche dessus (avec son limiteur).
+	player:SetAttribute("MaxWalkSpeed", math.floor(Movement.WalkSpeedFor(data.Speed)))
 	player:SetAttribute("BoostUntil", data.BoostUntil)
 	setLeaderstat(player, Gameplay.Stats.SpeedName, Format.Number(data.Speed))
 	setLeaderstat(player, Gameplay.Stats.WinsName, Format.Number(data.Wins))

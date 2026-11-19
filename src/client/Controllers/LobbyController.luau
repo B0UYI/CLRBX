@@ -1,10 +1,14 @@
 --!strict
 -- Détails visuels du lobby, côté joueur :
 --  • fait défiler les bandes des tapis de course ;
---  • affiche « Possédée ✅ » sur les capes déjà achetées (l'achat reste vérifié par le serveur).
+--  • affiche « Possédé ✅ » sur l'équipement déjà acheté et « 🔒 » sur les portails verrouillés
+--    (simple affichage : le serveur revérifie tout).
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local Worlds = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("Worlds"))
 
 local LobbyController = {}
 
@@ -16,10 +20,16 @@ function LobbyController:Start()
 	local prompts: { ProximityPrompt } = {}
 
 	local function refreshPrompt(prompt: ProximityPrompt)
-		local id = prompt:GetAttribute("CapeId")
-		if type(id) == "string" then
-			local owned = player:GetAttribute(`OwnsCape_{id}`) == true
-			prompt.ActionText = if owned then "Possédée ✅" else "Acheter"
+		local equipId = prompt:GetAttribute("EquipId")
+		local worldId = prompt:GetAttribute("WorldId")
+		if type(equipId) == "string" then
+			local owned = player:GetAttribute(`OwnsEquip_{equipId}`) == true
+			prompt.ActionText = if owned then "Possédé ✅" else "Acheter"
+		elseif type(worldId) == "string" then
+			local world = Worlds.ById[worldId]
+			local total = player:GetAttribute("TotalWins")
+			local unlocked = world ~= nil and type(total) == "number" and total >= world.RequiredWins
+			prompt.ActionText = if unlocked then "Entrer" else "🔒 Verrouillé"
 		end
 	end
 
@@ -29,7 +39,10 @@ function LobbyController:Start()
 			if gradient then
 				table.insert(gradients, gradient)
 			end
-		elseif instance:IsA("ProximityPrompt") and instance:GetAttribute("CapeId") ~= nil then
+		elseif
+			instance:IsA("ProximityPrompt")
+			and (instance:GetAttribute("EquipId") ~= nil or instance:GetAttribute("WorldId") ~= nil)
+		then
 			table.insert(prompts, instance)
 			refreshPrompt(instance)
 		end
@@ -43,7 +56,7 @@ function LobbyController:Start()
 	end
 
 	player.AttributeChanged:Connect(function(name: string)
-		if string.sub(name, 1, 9) == "OwnsCape_" then
+		if string.sub(name, 1, 10) == "OwnsEquip_" or name == "TotalWins" then
 			for _, prompt in prompts do
 				refreshPrompt(prompt)
 			end

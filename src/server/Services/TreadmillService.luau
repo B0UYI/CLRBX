@@ -11,7 +11,6 @@ local DataService = require(script.Parent.DataService)
 local FxService = require(script.Parent.FxService)
 local LobbyService = require(script.Parent.LobbyService)
 local NotifyService = require(script.Parent.NotifyService)
-local OnboardingService = require(script.Parent.OnboardingService)
 local StatsService = require(script.Parent.StatsService)
 
 local TreadmillService = {}
@@ -156,7 +155,6 @@ function TreadmillService:Start()
 						if data.TotalWins >= treadmill.Def.RequiredWins then
 							local gained = StatsService.AddSpeed(player, treadmill.Def.SpeedPerSecond)
 							FxService.Popup(root.Position + Vector3.new(0, 4, 0), `+{Format.Number(gained)} ⚡`)
-							OnboardingService.Advance(player, "Treadmill")
 						elseif os.clock() - (lastLockWarning[player] or 0) >= LOCK_WARNING_SECONDS then
 							lastLockWarning[player] = os.clock()
 							NotifyService.Send(

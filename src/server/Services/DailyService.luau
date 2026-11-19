@@ -1,7 +1,7 @@
 --!strict
 -- Retour quotidien, sauvegardé :
 --  • cadeau de connexion en victoires, qui grandit avec la série de jours d'affilée ;
---  • défi du jour : faire N courses, remis à zéro chaque jour.
+--  • défi du jour : terminer N parcours, remis à zéro chaque jour.
 -- Jour = numéro de jour UTC (os.time() // 86400).
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -26,9 +26,9 @@ local function publish(player: Player)
 	end
 	local daily = data.Daily
 	player:SetAttribute("DailyStreak", daily.Streak)
-	player:SetAttribute("DailyRaces", math.min(daily.Races, Config.RaceGoal))
-	player:SetAttribute("DailyGoal", Config.RaceGoal)
-	player:SetAttribute("DailyReward", Config.RaceReward)
+	player:SetAttribute("DailyFinishes", math.min(daily.Finishes, Config.FinishGoal))
+	player:SetAttribute("DailyGoal", Config.FinishGoal)
+	player:SetAttribute("DailyReward", Config.FinishReward)
 	player:SetAttribute("DailyClaimed", daily.GoalClaimed)
 end
 
@@ -54,7 +54,7 @@ local function ensureToday(player: Player)
 	end
 	daily.Streak = if daily.Day == day - 1 then daily.Streak + 1 else 1
 	daily.Day = day
-	daily.Races = 0
+	daily.Finishes = 0
 	daily.GoalClaimed = false
 
 	local rewards = Config.LoginRewards
@@ -76,8 +76,8 @@ local function ensureToday(player: Player)
 	publish(player)
 end
 
--- Appelé à la fin de chaque course du joueur.
-function DailyService.RecordRace(player: Player)
+-- Appelé à chaque parcours terminé par le joueur.
+function DailyService.RecordFinish(player: Player)
 	ensureToday(player)
 	local data = DataService.Get(player)
 	if not data then
@@ -85,13 +85,13 @@ function DailyService.RecordRace(player: Player)
 	end
 	local daily = data.Daily
 	if not daily.GoalClaimed then
-		daily.Races += 1
-		if daily.Races >= Config.RaceGoal then
+		daily.Finishes += 1
+		if daily.Finishes >= Config.FinishGoal then
 			daily.GoalClaimed = true
-			StatsService.AddWins(player, Config.RaceReward, "TimedReward", "DefiDuJour", true)
+			StatsService.AddWins(player, Config.FinishReward, "TimedReward", "DefiDuJour", true)
 			NotifyService.Send(
 				player,
-				`📅 Défi du jour réussi ! +{Config.RaceReward} 🏆 Nouveau défi demain.`,
+				`📅 Défi du jour réussi ! +{Config.FinishReward} 🏆 Nouveau défi demain.`,
 				"success"
 			)
 			celebrate(player)

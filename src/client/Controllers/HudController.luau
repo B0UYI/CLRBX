@@ -1,6 +1,6 @@
 --!strict
--- Interface : panneau (Vitesse +/s, Victoires, gains, vitesse de vol, défi du jour),
--- bandeau de course en haut, et au centre le compte à rebours puis la distance en course.
+-- Interface : panneau (Vitesse +/s, Victoires, gains, vitesse de course, prochain monde, défi du jour)
+-- et bandeau en haut (monde actuel, point de contrôle, record).
 -- Lit uniquement des attributs publiés par le serveur.
 
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
-local Race = require(Shared:WaitForChild("Config"):WaitForChild("Race"))
+local Worlds = require(Shared:WaitForChild("Config"):WaitForChild("Worlds"))
 
 local HudController = {}
 
@@ -34,19 +34,8 @@ local function number(value: unknown, default: number): number
 	return if type(value) == "number" then value else default
 end
 
-local function zonesReached(distance: number): number
-	local count = 0
-	for _, zone in Race.Zones do
-		if zone.Distance <= distance then
-			count += 1
-		end
-	end
-	return count
-end
-
 function HudController:Start()
 	local player = Players.LocalPlayer
-	local state = ReplicatedStorage:WaitForChild("GameState")
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "Hud"
@@ -87,12 +76,14 @@ function HudController:Start()
 	local winsLabel = makeLabel(panel, 2, 26)
 	local gainLabel = makeLabel(panel, 3, 22)
 	gainLabel.TextColor3 = Color3.fromRGB(150, 220, 255)
-	local flyLabel = makeLabel(panel, 4, 20)
-	local dailyLabel = makeLabel(panel, 5, 20)
-	local streakLabel = makeLabel(panel, 6, 20)
+	local runLabel = makeLabel(panel, 4, 20)
+	local nextLabel = makeLabel(panel, 5, 20)
+	nextLabel.TextColor3 = Color3.fromRGB(180, 255, 180)
+	local dailyLabel = makeLabel(panel, 6, 20)
+	local streakLabel = makeLabel(panel, 7, 20)
 	streakLabel.TextColor3 = Color3.fromRGB(255, 200, 120)
 
-	-- Bandeau de course en haut.
+	-- Bandeau en haut (monde actuel).
 	local pill = Instance.new("TextLabel")
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 0, 10)
@@ -110,21 +101,7 @@ function HudController:Start()
 	pillCorner.CornerRadius = UDim.new(0, 12)
 	pillCorner.Parent = pill
 
-	-- Grand texte au centre (compte à rebours, distance).
-	local big = Instance.new("TextLabel")
-	big.AnchorPoint = Vector2.new(0.5, 0.5)
-	big.Position = UDim2.new(0.5, 0, 0.28, 0)
-	big.Size = UDim2.new(0.8, 0, 0, 100)
-	big.BackgroundTransparency = 1
-	big.TextColor3 = Color3.new(1, 1, 1)
-	big.TextStrokeTransparency = 0.2
-	big.TextScaled = true
-	big.Font = Enum.Font.FredokaOne
-	big.Visible = false
-	big.Parent = gui
-
 	while true do
-		local now = workspace:GetServerTimeNow()
 		local speed = number(player:GetAttribute("Speed"), 0)
 		local perSecond = number(player:GetAttribute("SpeedPerSecond"), 0)
 		speedLabel.Text = `⚡ Vitesse : {Format.Number(speed)}  (+{Format.Number(perSecond)}/s)`
@@ -134,16 +111,31 @@ function HudController:Start()
 		gainLabel.Text = if boostLeft > 0
 			then `🦸 Gains ×{multiplier} · 🚀 Turbo {formatTime(boostLeft)}`
 			else `🦸 Gains ×{multiplier}`
-		flyLabel.Text = `✈️ Vol : {math.floor(number(player:GetAttribute("FlySpeed"), 0))} m/s`
+		local limiter = number(player:GetAttribute("Limiter"), 1)
+		local walk = math.floor(number(player:GetAttribute("MaxWalkSpeed"), 16) * limiter)
+		runLabel.Text = if limiter < 1
+			then `🏃 Course : {Format.Number(walk)} ({math.floor(limiter * 100)} %)`
+			else `🏃 Course : {Format.Number(walk)}`
+		local totalWins = number(player:GetAttribute("TotalWins"), 0)
+		local nextWorld = nil
+		for _, world in Worlds.List do
+			if world.RequiredWins > totalWins then
+				nextWorld = world
+				break
+			end
+		end
+		nextLabel.Text = if nextWorld
+			then `🔓 Prochain monde : {nextWorld.Name} ({Format.Number(nextWorld.RequiredWins)} 🏆)`
+			else "🌟 Tous les mondes sont débloqués !"
 
 		local dailyGoal = player:GetAttribute("DailyGoal")
 		if type(dailyGoal) == "number" then
 			if player:GetAttribute("DailyClaimed") == true then
 				dailyLabel.Text = "📅 Défi du jour réussi ✅"
 			else
-				local races = number(player:GetAttribute("DailyRaces"), 0)
+				local finishes = number(player:GetAttribute("DailyFinishes"), 0)
 				local reward = number(player:GetAttribute("DailyReward"), 0)
-				dailyLabel.Text = `📅 Défi : {races}/{dailyGoal} courses ({reward} 🏆)`
+				dailyLabel.Text = `📅 Défi : {finishes}/{dailyGoal} parcours ({reward} 🏆)`
 			end
 		else
 			dailyLabel.Text = ""
@@ -151,39 +143,13 @@ function HudController:Start()
 		local streak = number(player:GetAttribute("DailyStreak"), 0)
 		streakLabel.Text = if streak > 0 then `🎁 Connexion : {streak} jour(s) d'affilée` else ""
 
-		local phase = state:GetAttribute("RacePhase")
-		local endsAt = number(state:GetAttribute("PhaseEndsAt"), now)
-		local racing = player:GetAttribute("Racing") == true
-		local distanceValue = player:GetAttribute("RaceDistance")
-		local raceWins = number(player:GetAttribute("RaceWins"), 0)
-		big.Visible = false
-		if phase == "Intermission" then
-			pill.Text = `🏁 Prochaine course dans {formatTime(endsAt - now)}`
-		elseif phase == "Countdown" then
-			pill.Text = "🏁 Prépare-toi !"
-			if racing then
-				big.Visible = true
-				big.Text = tostring(math.max(1, math.ceil(endsAt - now)))
-			end
-		elseif phase == "Racing" then
-			pill.Text = `🏁 COURSE ! {formatTime(endsAt - now)}`
-			if racing and type(distanceValue) == "number" then
-				local startAt = number(state:GetAttribute("RaceStartAt"), now)
-				big.Visible = true
-				local zoneText = `Zone {zonesReached(distanceValue)}/{#Race.Zones}`
-				local winsText = Format.Number(raceWins)
-				big.Text = if now - startAt < 1
-					then "GO ! 🚀"
-					else `{Format.Number(distanceValue)} m · {zoneText}\n+{winsText} 🏆`
-			end
-		elseif phase == "Results" then
-			pill.Text = "🏆 Résultats"
-			if type(distanceValue) == "number" then
-				big.Visible = true
-				big.Text = `Résultat : {Format.Number(distanceValue)} m\n+{Format.Number(raceWins)} 🏆`
-			end
+		local worldId = player:GetAttribute("World")
+		local world = if type(worldId) == "string" then Worlds.ById[worldId] else nil
+		if world then
+			local checkpoint = number(player:GetAttribute("Checkpoint"), 0)
+			pill.Text = `🌍 {world.Name} · 🚩 {checkpoint}/3 · Arrivée +{Format.Number(world.Wins)} 🏆`
 		else
-			pill.Text = ""
+			pill.Text = "🏠 Lobby · entre dans un portail pour courir 🏁"
 		end
 
 		task.wait(0.1)
