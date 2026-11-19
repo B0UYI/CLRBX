@@ -71,6 +71,31 @@ local function buildClouds(parent: Instance)
 	end
 end
 
+local WIND_COUNT = 14
+
+-- Barrières de vent dans le ciel du lobby (mur du son côté joueur).
+local function buildWinds(parent: Instance)
+	local random = Random.new(99)
+	for _ = 1, WIND_COUNT do
+		local radius = random:NextNumber(8, 14)
+		local disc = Instance.new("Part")
+		disc.Name = "BarriereDeVent"
+		disc.Anchored = true
+		disc.CanCollide = false
+		disc.CanQuery = false
+		disc.CanTouch = false
+		disc.Shape = Enum.PartType.Cylinder
+		disc.Size = Vector3.new(0.6, radius * 2, radius * 2)
+		disc.CFrame = CFrame.new(random:NextNumber(-250, 250), random:NextNumber(30, 110), random:NextNumber(-250, 250))
+			* CFrame.Angles(0, random:NextNumber(0, math.pi * 2), 0)
+		disc.Color = Color3.fromRGB(190, 240, 255)
+		disc.Material = Enum.Material.ForceField
+		disc.Transparency = 0.2
+		disc:SetAttribute("Vent", radius)
+		disc.Parent = parent
+	end
+end
+
 function AmbianceService:Start()
 	setupLighting()
 	local lobby = LobbyService.Folder
@@ -79,6 +104,7 @@ function AmbianceService:Start()
 		clouds.Name = "Nuages"
 		clouds.Parent = lobby
 		buildClouds(clouds)
+		buildWinds(clouds)
 	end
 end
 

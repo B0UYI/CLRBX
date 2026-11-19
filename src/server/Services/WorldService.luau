@@ -84,15 +84,15 @@ end
 
 local function billboard(adornee: BasePart, text: string, color: Color3, offsetY: number, maxDistance: number)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(240, 70)
+	gui.Size = UDim2.new(8, 0, 2.4, 0) -- en studs : discret de loin
 	gui.StudsOffset = Vector3.new(0, offsetY, 0)
-	gui.MaxDistance = maxDistance
+	gui.MaxDistance = math.min(maxDistance, 150)
 	gui.Adornee = adornee
 	gui.Parent = adornee
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundColor3 = Color3.fromRGB(20, 25, 45)
-	label.BackgroundTransparency = 0.2
+	label.BackgroundTransparency = 0.5
 	label.TextColor3 = color
 	label.TextScaled = true
 	label.Font = Enum.Font.FredokaOne
@@ -195,6 +195,24 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 		end
 		return p
 	end
+	-- Barrière de vent : disque traversable ; la franchir = mur du son + bonus de vitesse (côté joueur).
+	local function wind(position: Vector3, radius: number)
+		local disc = part(model, {
+			Name = "BarriereDeVent",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.6, radius * 2, radius * 2),
+			-- Axe du cylindre (X) dans le sens du parcours.
+			CFrame = CFrame.new(position),
+			Color = Color3.fromRGB(190, 240, 255),
+			Material = Enum.Material.ForceField,
+			Transparency = 0.2,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+		})
+		disc:SetAttribute("Vent", radius)
+	end
+
 	local function randomPoint(x0: number, length: number, margin: number): Vector3
 		return at(
 			x0 + random:NextNumber(margin, length - margin),
@@ -218,20 +236,7 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 			})
 		end
 		for rx = x0 + 40, x0 + length - 30, 60 do
-			for _, offset in
-				{ Vector3.new(0, 12, 0), Vector3.new(0, -12, 0), Vector3.new(0, 0, 12), Vector3.new(0, 0, -12) }
-			do
-				local horizontal = offset.Y == 0
-				part(model, {
-					Name = "Anneau",
-					Size = if horizontal then Vector3.new(1, 24, 1) else Vector3.new(1, 1, 24),
-					Position = at(rx, 0, 0) + offset,
-					Color = def.AccentColor,
-					Material = Enum.Material.Neon,
-					CanCollide = false,
-					CanQuery = false,
-				})
-			end
+			wind(at(rx, random:NextNumber(-10, 10), random:NextNumber(-15, 15)), 10)
 		end
 	end
 
@@ -409,6 +414,8 @@ local function buildWorld(index: number, def: Worlds.World, parent: Instance): B
 		local info =
 			`Étape {stage} · {length} m de vol\n🔋 Endurance conseillée : {needed} s\nNiveau conseillé : {level}`
 		billboard(sign, info, Color3.fromRGB(255, 240, 120), 0, 300)
+		-- Une barrière de vent à l'entrée de chaque étape pour prendre de l'élan.
+		wind(at(x + 10, 4, 0), 12)
 		buildBiome(x, length, difficulty)
 		x += length
 

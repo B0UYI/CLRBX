@@ -71,9 +71,8 @@ function FxService.Popup(position: Vector3, text: string, color: Color3?)
 	anchor.Position = position
 	anchor.Parent = workspace
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(140, 40)
-	gui.AlwaysOnTop = true
-	gui.MaxDistance = 120
+	gui.Size = UDim2.new(4, 0, 1.2, 0)
+	gui.MaxDistance = 60
 	gui.Adornee = anchor
 	gui.Parent = anchor
 	local label = Instance.new("TextLabel")

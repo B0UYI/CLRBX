@@ -18,9 +18,9 @@ local function build(player: Player, character: Model)
 	end
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "InfosJoueur"
-	gui.Size = UDim2.fromOffset(200, 54)
+	gui.Size = UDim2.new(5, 0, 1.4, 0)
 	gui.StudsOffset = Vector3.new(0, 3.2, 0)
-	gui.MaxDistance = 80
+	gui.MaxDistance = 50
 	gui.Adornee = head
 	gui.Parent = head
 	local label = Instance.new("TextLabel")

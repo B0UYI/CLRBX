@@ -193,15 +193,15 @@ end
 
 local function label(adornee: BasePart, text: string, offsetY: number)
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(180, 70)
+	gui.Size = UDim2.new(5.5, 0, 2, 0)
 	gui.StudsOffset = Vector3.new(0, offsetY, 0)
-	gui.MaxDistance = 80
+	gui.MaxDistance = 40
 	gui.Adornee = adornee
 	gui.Parent = adornee
 	local textLabel = Instance.new("TextLabel")
 	textLabel.Size = UDim2.fromScale(1, 1)
 	textLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-	textLabel.BackgroundTransparency = 0.2
+	textLabel.BackgroundTransparency = 0.5
 	textLabel.TextColor3 = Color3.new(1, 1, 1)
 	textLabel.TextScaled = true
 	textLabel.Font = Enum.Font.FredokaOne

@@ -7,8 +7,8 @@ local TweenService = game:GetService("TweenService")
 
 local NotificationController = {}
 
-local MAX_TOASTS = 4
-local VISIBLE_SECONDS = 3.5
+local MAX_TOASTS = 3
+local VISIBLE_SECONDS = 2.8
 
 local COLORS: { [string]: Color3 } = {
 	info = Color3.fromRGB(45, 35, 70),
@@ -36,7 +36,7 @@ local function buildGui()
 	frame.Parent = gui
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MaxSize = Vector2.new(520, math.huge)
+	constraint.MaxSize = Vector2.new(420, math.huge)
 	constraint.Parent = frame
 
 	local layout = Instance.new("UIListLayout")
@@ -68,7 +68,7 @@ local function show(text: string, kind: string)
 	order += 1
 	local label = Instance.new("TextLabel")
 	label.LayoutOrder = order
-	label.Size = UDim2.new(1, 0, 0, 40)
+	label.Size = UDim2.new(1, 0, 0, 30)
 	label.BackgroundColor3 = COLORS[kind] or COLORS.info
 	label.BackgroundTransparency = 0.1
 	label.TextColor3 = Color3.new(1, 1, 1)

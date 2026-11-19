@@ -18,6 +18,14 @@
       qui s'allument en vague · Espace : astéroïdes.
 - [ ] 🧬 Évoluer, 👣 +2 / pas, équipement, 🛒 Boutique : comme avant.
 
+## Sensation de vol (v2)
+- [ ] Posture : bras droit tendu, bras gauche le long du corps, genou gauche plié (vu aussi par un 2e joueur).
+- [ ] En virage, le corps s'incline ; sans commande, on plane sur sa lancée.
+- [ ] Plus on va vite, plus le champ de vision s'élargit ; lignes de vitesse ; légère vibration à très haute vitesse.
+- [ ] Disques de vent (ciel du lobby, entrée de chaque étape, Ciel) : les traverser = onde de choc + son + accélération 2 s.
+- [ ] Textes (étapes, achats, tapis, portails) : petits de loin, lisibles de près, ne bouchent plus l'écran.
+- [ ] Si l'inclinaison part du mauvais côté dans les virages, dis-le-moi (un signe à inverser).
+
 ## À me renvoyer
 - Tout message **rouge ou orange** de la Sortie (copier-coller).
 - Ce qui ne marche pas, et ton ressenti : **vitesse de progression** (trop lente / trop rapide ?),

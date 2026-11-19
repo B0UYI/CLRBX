@@ -71,9 +71,9 @@ function StepService:Start()
 			pad.Material = Enum.Material.Neon
 			pad.Parent = folder
 			local gui = Instance.new("BillboardGui")
-			gui.Size = UDim2.fromOffset(150, 56)
+			gui.Size = UDim2.new(5, 0, 1.8, 0)
 			gui.StudsOffset = Vector3.new(0, 3.5, 0)
-			gui.MaxDistance = 70
+			gui.MaxDistance = 45
 			gui.Adornee = pad
 			gui.Parent = pad
 			local label = Instance.new("TextLabel")
@@ -108,8 +108,8 @@ function StepService:Start()
 	sign.Position = Vector3.new(0, 12, ROW_Z)
 	sign.Parent = folder
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(360, 60)
-	gui.MaxDistance = 150
+	gui.Size = UDim2.new(16, 0, 2.6, 0)
+	gui.MaxDistance = 100
 	gui.Adornee = sign
 	gui.Parent = sign
 	local title = Instance.new("TextLabel")

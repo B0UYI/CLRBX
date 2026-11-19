@@ -38,7 +38,20 @@ return {
 	Regen = 4,
 	-- Endurance minimale pour décoller.
 	MinToTakeOff = 1,
-	Responsiveness = 6,
+	Responsiveness = 5,
+	-- Sans commande, on plane sur sa lancée (freinage doux, par seconde).
+	GlideDrag = 0.6,
+	-- Inclinaison dans les virages (radians max) et sensibilité.
+	MaxBank = math.rad(55),
+	BankFactor = 0.45,
+	-- Caméra : champ de vision au repos / à pleine vitesse, vibration à haute vitesse.
+	BaseFov = 70,
+	MaxFov = 100,
+	FovSpeedForMax = 260,
+	ShakeFromSpeed = 180,
+	-- Barrières de vent : mur du son + bonus de vitesse temporaire.
+	WindBoostMultiplier = 1.5,
+	WindBoostSeconds = 2,
 	ToggleCooldownSeconds = 0.25,
 	MinMovingSpeed = 8,
 }

@@ -91,15 +91,15 @@ local function build(folder: Instance)
 			})
 		end
 		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(200, 70)
+		gui.Size = UDim2.new(6, 0, 2, 0)
 		gui.StudsOffset = Vector3.new(0, 5, 0)
-		gui.MaxDistance = 90
+		gui.MaxDistance = 45
 		gui.Adornee = base
 		gui.Parent = base
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-		label.BackgroundTransparency = 0.2
+		label.BackgroundTransparency = 0.5
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.TextScaled = true
 		label.Font = Enum.Font.FredokaOne

@@ -9,6 +9,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local Config = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
 local Flight = require(Config:WaitForChild("Flight"))
@@ -25,6 +27,10 @@ local rig: Rig? = nil
 -- Module de contrôle de Roblox (clavier, manette, joystick mobile).
 local controls: any = nil
 local currentVelocity = Vector3.zero
+local bank = 0
+local lastHeading: Vector3? = nil
+-- Bonus des barrières de vent (mur du son) jusqu'à cet instant (os.clock()).
+local windBoostUntil = 0
 
 local function characterParts(): (Humanoid?, BasePart?)
 	local character = player.Character
@@ -162,18 +168,73 @@ local function setBoost(value: boolean)
 	end
 end
 
+-- Mur du son : onde de choc, son, et bonus de vitesse temporaire.
+local function sonicBoom(root: BasePart)
+	windBoostUntil = os.clock() + Flight.WindBoostSeconds
+	local direction = if currentVelocity.Magnitude > 1 then currentVelocity.Unit else root.CFrame.LookVector
+	local ring = Instance.new("Part")
+	ring.Name = "OndeDeChoc"
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanQuery = false
+	ring.CanTouch = false
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Material = Enum.Material.ForceField
+	ring.Color = Color3.fromRGB(200, 240, 255)
+	ring.Size = Vector3.new(0.6, 6, 6)
+	-- L'axe d'un cylindre est X : on l'aligne sur la direction du vol.
+	ring.CFrame = CFrame.lookAt(root.Position, root.Position + direction) * CFrame.Angles(0, math.pi / 2, 0)
+	ring.Parent = workspace.CurrentCamera
+	TweenService:Create(ring, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.6, 45, 45),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(ring, 0.6)
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxasset://sounds/swoosh.wav"
+	sound.Volume = 1
+	sound.PlaybackSpeed = 0.7
+	sound.Parent = root
+	sound:Play()
+	Debris:AddItem(sound, 2)
+end
+
 local function stepFree(humanoid: Humanoid, root: BasePart, dt: number)
 	local current = startRig(humanoid, root)
 	local direction = inputDirection(humanoid)
 	local speedValue = player:GetAttribute("FlySpeed")
 	local base = if type(speedValue) == "number" then speedValue else Flight.FlySpeedFor(0)
 	local speed = if player:GetAttribute("Boosting") == true then base * Flight.BoostMultiplier else base
-	local alpha = 1 - math.exp(-Flight.Responsiveness * dt)
-	currentVelocity = currentVelocity:Lerp(direction * speed, alpha)
+	if os.clock() < windBoostUntil then
+		speed *= Flight.WindBoostMultiplier
+	end
+	if direction.Magnitude > 0.05 then
+		local alpha = 1 - math.exp(-Flight.Responsiveness * dt)
+		currentVelocity = currentVelocity:Lerp(direction * speed, alpha)
+	else
+		-- Pas de commande : on plane sur sa lancée.
+		currentVelocity *= math.exp(-Flight.GlideDrag * dt)
+	end
 	current.Velocity.VectorVelocity = currentVelocity
+
+	-- Inclinaison dans les virages, selon la vitesse de rotation du cap.
+	local flat = Vector3.new(currentVelocity.X, 0, currentVelocity.Z)
+	local targetBank = 0
+	if flat.Magnitude > 8 then
+		local heading = flat.Unit
+		if lastHeading and dt > 0 then
+			local turn = lastHeading:Cross(heading).Y
+			targetBank = math.clamp(-turn / dt * Flight.BankFactor, -Flight.MaxBank, Flight.MaxBank)
+		end
+		lastHeading = heading
+	else
+		lastHeading = nil
+	end
+	bank += (targetBank - bank) * math.min(1, dt * 6)
+
 	local camera = workspace.CurrentCamera
 	if currentVelocity.Magnitude > 4 then
-		current.Align.CFrame = horizontal(currentVelocity)
+		current.Align.CFrame = horizontal(currentVelocity) * CFrame.Angles(0, bank, 0)
 	elseif camera then
 		current.Align.CFrame = upright(camera.CFrame.LookVector)
 	end
@@ -256,7 +317,81 @@ function FlightController:Start()
 		rig = nil
 	end)
 
+	-- Lignes de vitesse : un volume invisible devant la caméra émet des traits vers elle.
+	local streaks = Instance.new("Part")
+	streaks.Name = "LignesDeVitesse"
+	streaks.Anchored = true
+	streaks.CanCollide = false
+	streaks.CanQuery = false
+	streaks.CanTouch = false
+	streaks.Transparency = 1
+	streaks.Size = Vector3.new(40, 26, 1)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	emitter.EmissionDirection = Enum.NormalId.Back
+	emitter.Orientation = Enum.ParticleOrientation.VelocityParallel
+	emitter.Speed = NumberRange.new(90, 130)
+	emitter.Lifetime = NumberRange.new(0.25, 0.35)
+	emitter.Size = NumberSequence.new(0.08)
+	emitter.Squash = NumberSequence.new(-3)
+	emitter.LightEmission = 1
+	emitter.Transparency = NumberSequence.new(0.35, 1)
+	emitter.Rate = 0
+	emitter.Parent = streaks
+
+	-- Barrières de vent (disques marqués « Vent » = rayon), traversées détectées ici.
+	local winds: { BasePart } = {}
+	local sides: { [BasePart]: number } = {}
+	local function trackWind(instance: Instance)
+		if instance:IsA("BasePart") and instance:GetAttribute("Vent") ~= nil then
+			table.insert(winds, instance)
+		end
+	end
+	workspace.DescendantAdded:Connect(trackWind)
+	for _, descendant in workspace:GetDescendants() do
+		trackWind(descendant)
+	end
+
+	local shakeTime = 0
+	RunService:BindToRenderStep("VolCamera", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		streaks.Parent = camera
+		local speed = if rig then currentVelocity.Magnitude else 0
+		local ratio = math.clamp(speed / Flight.FovSpeedForMax, 0, 1)
+		local targetFov = Flight.BaseFov + (Flight.MaxFov - Flight.BaseFov) * ratio
+		camera.FieldOfView += (targetFov - camera.FieldOfView) * math.min(1, dt * 4)
+		streaks.CFrame = camera.CFrame * CFrame.new(0, 0, -28)
+		emitter.Rate = if speed > 60 then math.min(160, (speed - 60) * 0.8) else 0
+		if speed > Flight.ShakeFromSpeed then
+			shakeTime += dt
+			local amount = math.min(1, (speed - Flight.ShakeFromSpeed) / 200) * 0.004
+			camera.CFrame *= CFrame.Angles(math.sin(shakeTime * 40) * amount, math.cos(shakeTime * 33) * amount, 0)
+		end
+	end)
+
 	RunService.RenderStepped:Connect(function(dt: number)
+		local _, windRoot = characterParts()
+		if wantsToFly and windRoot then
+			for _, wind in winds do
+				if wind.Parent then
+					local offset = windRoot.Position - wind.Position
+					local side = offset:Dot(wind.CFrame.RightVector) -- axe du disque (X)
+					local radius = wind:GetAttribute("Vent")
+					local previous = sides[wind]
+					sides[wind] = side
+					if previous and math.sign(previous) ~= math.sign(side) and type(radius) == "number" then
+						local lateral = offset - wind.CFrame.RightVector * side
+						if lateral.Magnitude <= radius then
+							sonicBoom(windRoot)
+						end
+					end
+				end
+			end
+		end
 		flyButton.Text = if wantsToFly then "🛬 Atterrir (F)" else "✈️ Voler (F)"
 		boostButton.Visible = wantsToFly
 		local humanoid, root = characterParts()
